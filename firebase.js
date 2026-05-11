@@ -10,12 +10,13 @@ import { getFirestore, initializeFirestore, persistentLocalCache, persistentMult
 
 // ─── YOUR CONFIG ────────────────────────────────────────────────────────────
 const firebaseConfig = {
-  apiKey:            "REPLACE_WITH_YOUR_API_KEY",
-  authDomain:        "REPLACE_WITH_YOUR_AUTH_DOMAIN",
-  projectId:         "REPLACE_WITH_YOUR_PROJECT_ID",
-  storageBucket:     "REPLACE_WITH_YOUR_STORAGE_BUCKET",
-  messagingSenderId: "REPLACE_WITH_YOUR_SENDER_ID",
-  appId:             "REPLACE_WITH_YOUR_APP_ID"
+  apiKey: "AIzaSyB-_zPiLh7hLRu0d5CvaHOcLr8z4l9WS0U",
+  authDomain: "rockd-app.firebaseapp.com",
+  projectId: "rockd-app",
+  storageBucket: "rockd-app.firebasestorage.app",
+  messagingSenderId: "984029011955",
+  appId: "1:984029011955:web:59d569b4a82fa8da333c86",
+  measurementId: "G-686RQRLYMN"
 };
 // ────────────────────────────────────────────────────────────────────────────
 
