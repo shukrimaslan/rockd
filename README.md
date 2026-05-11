@@ -1,5 +1,12 @@
 # rockd
 A checklist web app with templates
+
+Phase 3 completion — turns out due dates and drag-to-reorder were already fully built in the last app.js rewrite, they just weren't getting the CSS styles they needed:
+<br>Due date — click the calendar icon on any task to pick a date. Shows "Today", "Tomorrow", or the date. Red if overdue, amber if today/tomorrow
+<br>Drag tasks — grab the ⠿ handle that appears on hover and drag to reorder within or across groups
+<br>Drag groups — grab the group header area to reorder groups within the checklist
+<br>Drag styles — blue highlight on drop target, dashed border on group drop zone
+
 <br>260511 - Alpha 0.01
 
 <br><b>Bug fixes:</b>
