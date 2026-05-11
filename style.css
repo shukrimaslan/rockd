@@ -494,6 +494,13 @@ a:hover { text-decoration: underline; }
 .mobile-nav { display: none; padding: 0 16px; height: 56px; border-bottom: 1px solid var(--border); align-items: center; justify-content: space-between; background: var(--bg2); }
 @media (max-width: 768px) { .mobile-nav { display: flex; } .content { padding: 16px; } }
 
+/* ─── DRAG AND DROP ──────────────────────────────────────────────────────── */
+.drag-handle { color: var(--text3); font-size: 14px; cursor: grab; padding: 0 4px; opacity: 0; transition: opacity .15s; flex-shrink: 0; line-height: 1; user-select: none; }
+.task-item:hover .drag-handle { opacity: 1; }
+.task-item:active .drag-handle { cursor: grabbing; }
+.task-item.drag-over { border-top: 2px solid var(--accent); background: var(--accent-glow); }
+.task-group.drag-over-group { border: 1px dashed var(--accent); background: var(--accent-glow); border-radius: var(--radius); }
+
 /* ─── EMPTY STATE ────────────────────────────────────────────────────────── */
 .empty-state { text-align: center; padding: 48px 24px; color: var(--text3); }
 .empty-state-icon  { font-size: 40px; margin-bottom: 12px; opacity: .5; }

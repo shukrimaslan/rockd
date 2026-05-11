@@ -722,8 +722,27 @@ window.saveGroupTitle = async (checklistId, groupId, el) => {
 function renderTask(checklistId, groupId, task) {
   const priorityColors = { low: "var(--green)", medium: "var(--blue)", high: "var(--amber)", critical: "var(--red)" };
   const pColor = priorityColors[task.priority] || priorityColors.medium;
+
+  // Due date display
+  let dateHtml = "";
+  if (task.date) {
+    const due     = new Date(task.date);
+    const today   = new Date(); today.setHours(0,0,0,0);
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+    const isOverdue  = !task.completed && due < today;
+    const isToday    = due.getTime() === today.getTime();
+    const isTomorrow = due.getTime() === tomorrow.getTime();
+    let label = due.toLocaleDateString("en-MY",{month:"short",day:"numeric"});
+    if (isToday)    label = "Today";
+    if (isTomorrow) label = "Tomorrow";
+    const cls = isOverdue ? "overdue" : (isToday || isTomorrow ? "upcoming" : "");
+    dateHtml = `<span class="task-date ${cls}">📅 ${label}</span>`;
+  }
+
   return `
-    <div class="task-item${task.completed ? " completed" : ""}" data-task="${task.id}" data-group="${groupId}">
+    <div class="task-item${task.completed ? " completed" : ""}" data-task="${task.id}" data-group="${groupId}"
+         draggable="true">
+      <div class="drag-handle" title="Drag to reorder">⠿</div>
       <div class="task-checkbox${task.completed ? " checked" : ""}" data-toggle data-task="${task.id}" data-group="${groupId}">
         ${task.completed ? `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>` : ""}
       </div>
@@ -738,9 +757,17 @@ function renderTask(checklistId, groupId, task) {
             <option value="high"     ${task.priority==="high"     ?"selected":""}>High</option>
             <option value="critical" ${task.priority==="critical" ?"selected":""}>Critical</option>
           </select>
+          ${dateHtml}
         </div>
       </div>
       <div class="task-actions">
+        <div class="task-action-btn" data-date-pick data-task="${task.id}" data-group="${groupId}" title="Set due date"
+             style="position:relative">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <input type="date" class="hidden-date-input" data-task="${task.id}" data-group="${groupId}"
+                 value="${task.date || ""}"
+                 style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"/>
+        </div>
         <div class="task-action-btn del" data-delete data-task="${task.id}" data-group="${groupId}" title="Delete">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </div>
@@ -807,6 +834,13 @@ function bindTaskEvents(c) {
   area.querySelectorAll("[data-delete]").forEach(el =>
     el.addEventListener("click", () => doDeleteTask(c.id, el.dataset.group, el.dataset.task)));
 
+  // Due date picker
+  area.querySelectorAll(".hidden-date-input").forEach(inp => {
+    inp.addEventListener("change", () => {
+      doEditTask(c.id, inp.dataset.group, inp.dataset.task, { date: inp.value || null });
+    });
+  });
+
   // Add task on Enter
   area.querySelectorAll(".add-task-input").forEach(inp => {
     inp.addEventListener("keydown", e => {
@@ -814,6 +848,113 @@ function bindTaskEvents(c) {
         doAddTask(c.id, inp.dataset.group, inp.value.trim(), c.groups || []);
         inp.value = "";
       }
+    });
+  });
+
+  // ── Drag to reorder tasks ───────────────────────────────────────────────
+  let dragSrc = null;
+
+  area.querySelectorAll(".task-item[draggable]").forEach(el => {
+    el.addEventListener("dragstart", e => {
+      dragSrc = el;
+      e.dataTransfer.effectAllowed = "move";
+      el.style.opacity = "0.4";
+    });
+    el.addEventListener("dragend", () => {
+      el.style.opacity = "";
+      area.querySelectorAll(".task-item").forEach(t => t.classList.remove("drag-over"));
+    });
+    el.addEventListener("dragover", e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (el !== dragSrc) el.classList.add("drag-over");
+    });
+    el.addEventListener("dragleave", () => el.classList.remove("drag-over"));
+    el.addEventListener("drop", e => {
+      e.preventDefault();
+      el.classList.remove("drag-over");
+      if (!dragSrc || dragSrc === el) return;
+
+      const srcGroupId  = dragSrc.dataset.group;
+      const destGroupId = el.dataset.group;
+      const srcTaskId   = dragSrc.dataset.task;
+      const destTaskId  = el.dataset.task;
+
+      const freshC = checklists.find(x => x.id === c.id);
+      if (!freshC?.groups) return;
+
+      // Build new groups with reordered tasks
+      let groups = freshC.groups.map(g => ({ ...g, tasks: [...(g.tasks || [])] }));
+
+      // Find and remove the dragged task from its source group
+      let movedTask = null;
+      groups = groups.map(g => {
+        if (g.id !== srcGroupId) return g;
+        const idx = g.tasks.findIndex(t => t.id === srcTaskId);
+        if (idx < 0) return g;
+        movedTask = g.tasks[idx];
+        return { ...g, tasks: g.tasks.filter(t => t.id !== srcTaskId) };
+      });
+
+      if (!movedTask) return;
+
+      // Insert before the drop target in the destination group
+      groups = groups.map(g => {
+        if (g.id !== destGroupId) return g;
+        const idx = g.tasks.findIndex(t => t.id === destTaskId);
+        const newTasks = [...g.tasks];
+        newTasks.splice(idx >= 0 ? idx : newTasks.length, 0, movedTask);
+        return { ...g, tasks: newTasks };
+      });
+
+      persistGroups(c.id, groups);
+    });
+  });
+
+  // ── Drag to reorder groups ──────────────────────────────────────────────
+  let dragSrcGroup = null;
+
+  area.querySelectorAll(".task-group").forEach(el => {
+    el.setAttribute("draggable", "true");
+    el.addEventListener("dragstart", e => {
+      // Only drag from the header, not from inside a task
+      if (e.target.closest(".task-item")) { e.preventDefault(); return; }
+      dragSrcGroup = el;
+      e.dataTransfer.effectAllowed = "move";
+      setTimeout(() => el.style.opacity = "0.4", 0);
+    });
+    el.addEventListener("dragend", () => {
+      el.style.opacity = "";
+      area.querySelectorAll(".task-group").forEach(g => g.classList.remove("drag-over-group"));
+    });
+    el.addEventListener("dragover", e => {
+      if (!dragSrcGroup || dragSrcGroup === el) return;
+      // Only accept group drags, not task drags
+      if (dragSrc) return;
+      e.preventDefault();
+      el.classList.add("drag-over-group");
+    });
+    el.addEventListener("dragleave", () => el.classList.remove("drag-over-group"));
+    el.addEventListener("drop", e => {
+      e.preventDefault();
+      el.classList.remove("drag-over-group");
+      if (!dragSrcGroup || dragSrcGroup === el || dragSrc) return;
+
+      const srcId  = dragSrcGroup.dataset.group;
+      const destId = el.dataset.group;
+
+      const freshC = checklists.find(x => x.id === c.id);
+      if (!freshC?.groups) return;
+
+      const groups   = [...freshC.groups];
+      const srcIdx   = groups.findIndex(g => g.id === srcId);
+      const destIdx  = groups.findIndex(g => g.id === destId);
+      if (srcIdx < 0 || destIdx < 0) return;
+
+      const [moved] = groups.splice(srcIdx, 1);
+      groups.splice(destIdx, 0, moved);
+      persistGroups(c.id, groups);
+      dragSrcGroup = null;
     });
   });
 }

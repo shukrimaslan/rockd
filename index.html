@@ -109,14 +109,20 @@
       <div id="sidebar-active"></div>
     </div>
 
-    <div class="sidebar-footer">
-      <div class="avatar" id="sidebar-avatar"></div>
-      <div>
-        <div class="footer-name" id="sidebar-name">Loading…</div>
-        <div id="guest-badge" style="display:none;font-size:10px;color:var(--amber);font-family:var(--mono)">GUEST MODE</div>
+    <div class="sidebar-footer" style="flex-direction:column;align-items:stretch;gap:10px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="avatar" id="sidebar-avatar"></div>
+        <div style="flex:1;min-width:0">
+          <div class="footer-name" id="sidebar-name">Loading…</div>
+          <div id="guest-badge" style="display:none;font-size:10px;color:var(--amber);font-family:var(--mono)">GUEST MODE</div>
+        </div>
+        <button class="theme-btn" id="theme-toggle" title="Toggle theme">
+          <div class="theme-btn-knob" id="theme-knob" style="left:2px"></div>
+        </button>
       </div>
-      <button class="theme-btn" id="theme-toggle" title="Toggle theme">
-        <div class="theme-btn-knob" id="theme-knob" style="left:2px"></div>
+      <button class="btn btn-ghost btn-sm" id="btn-signout" style="width:100%;justify-content:center;gap:6px;color:var(--text3)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign out
       </button>
     </div>
   </aside>
@@ -244,6 +250,7 @@
     appShell.style.display   = "none";
   }
   document.getElementById("btn-signout-mobile").addEventListener("click", handleSignOut);
+  document.getElementById("btn-signout").addEventListener("click", handleSignOut);
 
   // ── Auth state ────────────────────────────────────────────────────────
   listenAuth(user => {
