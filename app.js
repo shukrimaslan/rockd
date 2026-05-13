@@ -585,13 +585,13 @@ function renderDetail(id) {
       </div>
     </div>
 
-    <div class="progress-bar-wrap">
+    <div class="sticky-progress" id="sticky-progress">
       <div class="progress-bar-header">
         <span class="progress-bar-label">Progress</span>
-        <span class="progress-bar-pct">${pct}%</span>
+        <span class="progress-bar-pct" id="progress-pct">${pct}%</span>
       </div>
       <div class="progress-bar">
-        <div class="progress-bar-fill" style="width:${pct}%"></div>
+        <div class="progress-bar-fill" id="progress-fill" style="width:${pct}%"></div>
       </div>
     </div>
 
@@ -689,6 +689,7 @@ function renderGroup(checklistId, group) {
   return `
     <div class="task-group" data-group="${group.id}">
       <div class="task-group-header" data-collapse="${group.id}" style="cursor:pointer">
+        <span class="group-drag-handle" title="Drag to reorder group" onclick="event.stopPropagation()">⠿</span>
         <span class="task-group-chevron${collapsed ? "" : " open"}">▸</span>
         <span class="task-group-title" contenteditable="true" spellcheck="false"
               style="outline:none;border-bottom:1px dashed transparent;cursor:text;flex:1"
@@ -851,108 +852,131 @@ function bindTaskEvents(c) {
     });
   });
 
-  // ── Drag to reorder tasks ───────────────────────────────────────────────
-  let dragSrc = null;
+  // ── Drag to reorder tasks (same group only) ────────────────────────────
+  let dragSrc     = null;  // currently dragged task element
+  let dragGroupId = null;  // group the drag started in
 
   area.querySelectorAll(".task-item[draggable]").forEach(el => {
     el.addEventListener("dragstart", e => {
-      dragSrc = el;
+      // Only allow drag via the handle
+      if (!e.target.closest(".drag-handle")) { e.preventDefault(); return; }
+      dragSrc     = el;
+      dragGroupId = el.dataset.group;
       e.dataTransfer.effectAllowed = "move";
-      el.style.opacity = "0.4";
+      setTimeout(() => el.classList.add("dragging"), 0);
     });
+
     el.addEventListener("dragend", () => {
-      el.style.opacity = "";
-      area.querySelectorAll(".task-item").forEach(t => t.classList.remove("drag-over"));
+      dragSrc     = null;
+      dragGroupId = null;
+      area.querySelectorAll(".task-item").forEach(t => {
+        t.classList.remove("drag-over");
+        t.classList.remove("dragging");
+      });
     });
+
     el.addEventListener("dragover", e => {
+      // Reject if not a task drag or cross-group
+      if (!dragSrc || el === dragSrc) return;
+      if (el.dataset.group !== dragGroupId) return; // same group only
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
-      if (el !== dragSrc) el.classList.add("drag-over");
+      area.querySelectorAll(".task-item").forEach(t => t.classList.remove("drag-over"));
+      el.classList.add("drag-over");
     });
-    el.addEventListener("dragleave", () => el.classList.remove("drag-over"));
+
+    el.addEventListener("dragleave", e => {
+      // Only remove highlight if leaving to something outside the task
+      if (!el.contains(e.relatedTarget)) el.classList.remove("drag-over");
+    });
+
     el.addEventListener("drop", e => {
       e.preventDefault();
+      e.stopPropagation(); // prevent group drop handler from firing
       el.classList.remove("drag-over");
       if (!dragSrc || dragSrc === el) return;
+      if (el.dataset.group !== dragGroupId) return; // same group only
 
-      const srcGroupId  = dragSrc.dataset.group;
-      const destGroupId = el.dataset.group;
-      const srcTaskId   = dragSrc.dataset.task;
-      const destTaskId  = el.dataset.task;
-
-      const freshC = checklists.find(x => x.id === c.id);
+      const groupId   = dragGroupId;
+      const srcTaskId = dragSrc.dataset.task;
+      const dstTaskId = el.dataset.task;
+      const freshC    = checklists.find(x => x.id === c.id);
       if (!freshC?.groups) return;
 
-      // Build new groups with reordered tasks
-      let groups = freshC.groups.map(g => ({ ...g, tasks: [...(g.tasks || [])] }));
-
-      // Find and remove the dragged task from its source group
-      let movedTask = null;
-      groups = groups.map(g => {
-        if (g.id !== srcGroupId) return g;
-        const idx = g.tasks.findIndex(t => t.id === srcTaskId);
-        if (idx < 0) return g;
-        movedTask = g.tasks[idx];
-        return { ...g, tasks: g.tasks.filter(t => t.id !== srcTaskId) };
-      });
-
-      if (!movedTask) return;
-
-      // Insert before the drop target in the destination group
-      groups = groups.map(g => {
-        if (g.id !== destGroupId) return g;
-        const idx = g.tasks.findIndex(t => t.id === destTaskId);
-        const newTasks = [...g.tasks];
-        newTasks.splice(idx >= 0 ? idx : newTasks.length, 0, movedTask);
-        return { ...g, tasks: newTasks };
+      const groups = freshC.groups.map(g => {
+        if (g.id !== groupId) return g;
+        const tasks  = [...(g.tasks || [])];
+        const srcIdx = tasks.findIndex(t => t.id === srcTaskId);
+        const dstIdx = tasks.findIndex(t => t.id === dstTaskId);
+        if (srcIdx < 0 || dstIdx < 0) return g;
+        const [moved] = tasks.splice(srcIdx, 1);
+        tasks.splice(dstIdx, 0, moved);
+        return { ...g, tasks };
       });
 
       persistGroups(c.id, groups);
     });
   });
 
-  // ── Drag to reorder groups ──────────────────────────────────────────────
+  // ── Drag to reorder groups (header handle only) ─────────────────────────
   let dragSrcGroup = null;
 
-  area.querySelectorAll(".task-group").forEach(el => {
-    el.setAttribute("draggable", "true");
-    el.addEventListener("dragstart", e => {
-      // Only drag from the header, not from inside a task
-      if (e.target.closest(".task-item")) { e.preventDefault(); return; }
-      dragSrcGroup = el;
+  area.querySelectorAll(".task-group").forEach(groupEl => {
+    const header = groupEl.querySelector(".task-group-header");
+    const handle = groupEl.querySelector(".group-drag-handle");
+    if (!handle) return;
+
+    // Only the handle triggers group drag
+    handle.setAttribute("draggable", "true");
+
+    handle.addEventListener("dragstart", e => {
+      dragSrcGroup = groupEl;
       e.dataTransfer.effectAllowed = "move";
-      setTimeout(() => el.style.opacity = "0.4", 0);
+      e.dataTransfer.setData("text/plain", "group"); // needed for Firefox
+      setTimeout(() => groupEl.classList.add("group-dragging"), 0);
     });
-    el.addEventListener("dragend", () => {
-      el.style.opacity = "";
+
+    handle.addEventListener("dragend", () => {
+      dragSrcGroup = null;
+      area.querySelectorAll(".task-group").forEach(g => {
+        g.classList.remove("drag-over-group");
+        g.classList.remove("group-dragging");
+      });
+    });
+
+    // The whole group is the drop target for other groups
+    groupEl.addEventListener("dragover", e => {
+      if (!dragSrcGroup || dragSrcGroup === groupEl) return;
+      if (dragSrc) return; // task drag in progress, ignore
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
       area.querySelectorAll(".task-group").forEach(g => g.classList.remove("drag-over-group"));
+      groupEl.classList.add("drag-over-group");
     });
-    el.addEventListener("dragover", e => {
-      if (!dragSrcGroup || dragSrcGroup === el) return;
-      // Only accept group drags, not task drags
-      if (dragSrc) return;
-      e.preventDefault();
-      el.classList.add("drag-over-group");
+
+    groupEl.addEventListener("dragleave", e => {
+      if (!groupEl.contains(e.relatedTarget)) groupEl.classList.remove("drag-over-group");
     });
-    el.addEventListener("dragleave", () => el.classList.remove("drag-over-group"));
-    el.addEventListener("drop", e => {
+
+    groupEl.addEventListener("drop", e => {
+      if (!dragSrcGroup || dragSrcGroup === groupEl) return;
+      if (dragSrc) return; // task drag in progress
       e.preventDefault();
-      el.classList.remove("drag-over-group");
-      if (!dragSrcGroup || dragSrcGroup === el || dragSrc) return;
+      e.stopPropagation();
+      groupEl.classList.remove("drag-over-group");
 
       const srcId  = dragSrcGroup.dataset.group;
-      const destId = el.dataset.group;
-
+      const dstId  = groupEl.dataset.group;
       const freshC = checklists.find(x => x.id === c.id);
       if (!freshC?.groups) return;
 
-      const groups   = [...freshC.groups];
-      const srcIdx   = groups.findIndex(g => g.id === srcId);
-      const destIdx  = groups.findIndex(g => g.id === destId);
-      if (srcIdx < 0 || destIdx < 0) return;
+      const groups  = [...freshC.groups];
+      const srcIdx  = groups.findIndex(g => g.id === srcId);
+      const dstIdx  = groups.findIndex(g => g.id === dstId);
+      if (srcIdx < 0 || dstIdx < 0) return;
 
       const [moved] = groups.splice(srcIdx, 1);
-      groups.splice(destIdx, 0, moved);
+      groups.splice(dstIdx, 0, moved);
       persistGroups(c.id, groups);
       dragSrcGroup = null;
     });
