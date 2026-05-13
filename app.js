@@ -290,44 +290,181 @@ function deleteCustomTemplate(id) {
   localStorage.setItem("rockd-custom-templates", JSON.stringify(existing));
 }
 
+// ─── Category helpers ─────────────────────────────────────────────────────
+function getCustomCategories() {
+  return JSON.parse(localStorage.getItem("rockd-custom-cats") || "[]");
+}
+function saveCustomCategories(cats) {
+  localStorage.setItem("rockd-custom-cats", JSON.stringify(cats));
+}
+function getAllCategories() {
+  const builtin = [...new Set(BUILTIN_TEMPLATES.map(t => t.cat))];
+  const custom  = getCustomCategories();
+  // merge, dedupe, keep order
+  return [...new Set([...builtin, ...custom])];
+}
+
 function renderTemplates() {
-  const custom  = getCustomTemplates();
-  const allTpls = [...BUILTIN_TEMPLATES, ...custom];
-  const cats    = ["All", "Custom", ...new Set(BUILTIN_TEMPLATES.map(t => t.cat))];
+  const custom   = getCustomTemplates();
+  const allTpls  = [...BUILTIN_TEMPLATES, ...custom];
+  const allCats  = getAllCategories();
+  const tabs     = ["All", ...allCats, "Custom"];
+  const customCatSet = new Set(getCustomCategories());
 
   document.getElementById("content").innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div class="tabs" id="template-tabs" style="margin-bottom:0">
-        ${cats.map((c, i) => `<div class="tab${i===0?" active":""}" data-cat="${c}">${c}${c==="Custom"?` (${custom.length})`:""}</div>`).join("")}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div class="tabs" id="template-tabs" style="margin-bottom:0;flex-wrap:wrap">
+        ${tabs.map((c, i) => `
+          <div class="tab${i===0?" active":""}" data-cat="${c}" style="display:flex;align-items:center;gap:4px">
+            ${c}${c==="Custom"?` (${custom.length})`:""}
+            ${customCatSet.has(c) ? `<span class="cat-edit-btn" data-cat="${c}" title="Edit category" style="font-size:10px;opacity:.5;cursor:pointer;padding:0 2px">✎</span><span class="cat-delete-btn" data-cat="${c}" title="Delete category" style="font-size:10px;opacity:.5;cursor:pointer;padding:0 2px">✕</span>` : ""}
+          </div>`).join("")}
+        <button class="btn btn-ghost btn-sm" id="btn-add-cat" style="width:auto;padding:4px 10px;font-size:11px">＋ Category</button>
       </div>
-      <button class="btn btn-ghost btn-sm" id="btn-import-template" style="width:auto">＋ Import Template</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" id="btn-import-template" style="width:auto">＋ Import Template</button>
+      </div>
     </div>
     <div class="template-grid" id="template-grid">${allTpls.map(t => templateCard(t, custom.some(c=>c.id===t.id))).join("")}</div>`;
 
+  // Tab filter
   document.querySelectorAll("#template-tabs .tab").forEach(tab => {
-    tab.addEventListener("click", () => {
+    tab.addEventListener("click", e => {
+      if (e.target.classList.contains("cat-edit-btn") ||
+          e.target.classList.contains("cat-delete-btn")) return;
       document.querySelectorAll("#template-tabs .tab").forEach(t => t.classList.remove("active"));
       tab.classList.add("active");
       const cat = tab.dataset.cat;
       let filtered;
-      if (cat === "All")    filtered = allTpls;
+      if      (cat === "All")    filtered = allTpls;
       else if (cat === "Custom") filtered = custom;
-      else filtered = BUILTIN_TEMPLATES.filter(t => t.cat === cat);
+      else filtered = allTpls.filter(t => t.cat === cat);
       document.getElementById("template-grid").innerHTML = filtered.map(t => templateCard(t, custom.some(c=>c.id===t.id))).join("");
       bindTemplateUse();
     });
   });
 
+  // Edit category name
+  document.querySelectorAll(".cat-edit-btn").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      showEditCategoryModal(btn.dataset.cat);
+    });
+  });
+
+  // Delete category
+  document.querySelectorAll(".cat-delete-btn").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const cat = btn.dataset.cat;
+      if (!confirm(`Delete category "${cat}"? Templates in this category won't be deleted.`)) return;
+      const cats = getCustomCategories().filter(c => c !== cat);
+      saveCustomCategories(cats);
+      renderTemplates();
+      showToast(`Category "${cat}" deleted`);
+    });
+  });
+
+  // Add new category
+  document.getElementById("btn-add-cat").addEventListener("click", showAddCategoryModal);
   document.getElementById("btn-import-template").addEventListener("click", showImportTemplateModal);
   bindTemplateUse();
+}
+
+function showAddCategoryModal() {
+  const existing = document.getElementById("cat-modal");
+  if (existing) existing.remove();
+  const modal = document.createElement("div");
+  modal.id = "cat-modal";
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <div class="modal" style="max-width:380px">
+      <div class="modal-title">Add Category</div>
+      <div class="modal-sub">Create a new category to organise your templates.</div>
+      <div class="modal-field">
+        <label class="modal-label">Category name</label>
+        <input id="cat-name-input" class="modal-input" placeholder="e.g. Marketing, Personal, Client Work"/>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-primary" id="save-cat-btn" style="flex:1">Add Category</button>
+        <button class="btn btn-ghost" id="cancel-cat-btn" style="flex:0;width:auto;padding:10px 16px">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); });
+  document.getElementById("cancel-cat-btn").addEventListener("click", () => modal.remove());
+  document.getElementById("cat-name-input").focus();
+
+  const save = () => {
+    const name = document.getElementById("cat-name-input").value.trim();
+    if (!name) return;
+    const cats = getCustomCategories();
+    if (cats.includes(name) || [...new Set(BUILTIN_TEMPLATES.map(t=>t.cat))].includes(name)) {
+      document.getElementById("cat-name-input").style.borderColor = "var(--red)";
+      return;
+    }
+    cats.push(name);
+    saveCustomCategories(cats);
+    modal.remove();
+    renderTemplates();
+    showToast(`Category "${name}" added`);
+  };
+  document.getElementById("save-cat-btn").addEventListener("click", save);
+  document.getElementById("cat-name-input").addEventListener("keydown", e => { if (e.key === "Enter") save(); });
+}
+
+function showEditCategoryModal(oldName) {
+  const existing = document.getElementById("cat-modal");
+  if (existing) existing.remove();
+  const modal = document.createElement("div");
+  modal.id = "cat-modal";
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <div class="modal" style="max-width:380px">
+      <div class="modal-title">Rename Category</div>
+      <div class="modal-sub">Rename "${oldName}" — all templates in this category will update.</div>
+      <div class="modal-field">
+        <label class="modal-label">New name</label>
+        <input id="cat-name-input" class="modal-input" value="${oldName}"/>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-primary" id="save-cat-btn" style="flex:1">Rename</button>
+        <button class="btn btn-ghost" id="cancel-cat-btn" style="flex:0;width:auto;padding:10px 16px">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); });
+  document.getElementById("cancel-cat-btn").addEventListener("click", () => modal.remove());
+  const inp = document.getElementById("cat-name-input");
+  inp.focus(); inp.select();
+
+  const save = () => {
+    const newName = inp.value.trim();
+    if (!newName || newName === oldName) { modal.remove(); return; }
+    // Rename in custom categories list
+    const cats = getCustomCategories().map(c => c === oldName ? newName : c);
+    saveCustomCategories(cats);
+    // Rename in all custom templates that use this category
+    const templates = getCustomTemplates().map(t => t.cat === oldName ? { ...t, cat: newName } : t);
+    localStorage.setItem("rockd-custom-templates", JSON.stringify(templates));
+    modal.remove();
+    renderTemplates();
+    showToast(`Renamed to "${newName}"`);
+  };
+  document.getElementById("save-cat-btn").addEventListener("click", save);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") save(); });
 }
 
 function templateCard(tpl, isCustom = false) {
   const count = tpl.groups.reduce((s,g) => s+g.tasks.length, 0);
   return `<div class="template-card" data-id="${tpl.id}">
-    <div style="display:flex;align-items:start;justify-content:space-between">
-      <div class="template-icon">${tpl.icon}</div>
-      ${isCustom ? `<button class="btn btn-danger btn-sm delete-custom-tpl" data-id="${tpl.id}" style="width:auto;padding:3px 8px;font-size:10px">✕</button>` : ""}
+    <div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:6px">
+      <div class="template-icon" style="margin-bottom:0">${tpl.icon}</div>
+      ${isCustom ? `
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-sm edit-custom-tpl" data-id="${tpl.id}" style="width:auto;padding:3px 8px;font-size:10px">✎</button>
+          <button class="btn btn-danger btn-sm delete-custom-tpl" data-id="${tpl.id}" style="width:auto;padding:3px 8px;font-size:10px">✕</button>
+        </div>` : ""}
     </div>
     <div class="template-name">${tpl.name}</div>
     <div class="template-cat">${tpl.cat} · ${count} tasks</div>
@@ -355,6 +492,79 @@ function bindTemplateUse() {
         showToast("Template deleted");
       }
     });
+  });
+  document.querySelectorAll(".edit-custom-tpl").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      showEditTemplateModal(btn.dataset.id);
+    });
+  });
+}
+
+function showEditTemplateModal(tplId) {
+  const tpl = getCustomTemplates().find(t => t.id === tplId);
+  if (!tpl) return;
+  const allCats = getAllCategories();
+
+  const existing = document.getElementById("edit-tpl-modal");
+  if (existing) existing.remove();
+  const modal = document.createElement("div");
+  modal.id = "edit-tpl-modal";
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <div class="modal">
+      <div class="modal-title">Edit Template</div>
+      <div class="modal-field">
+        <label class="modal-label">Name</label>
+        <input id="etpl-name" class="modal-input" value="${tpl.name}"/>
+      </div>
+      <div class="modal-field" style="display:flex;gap:8px">
+        <div style="flex:1">
+          <label class="modal-label">Icon</label>
+          <input id="etpl-icon" class="modal-input" value="${tpl.icon}" maxlength="2"/>
+        </div>
+        <div style="flex:2">
+          <label class="modal-label">Category</label>
+          <select id="etpl-cat" class="modal-input">
+            ${allCats.map(c => `<option value="${c}" ${tpl.cat===c?"selected":""}>${c}</option>`).join("")}
+            <option value="__new__">＋ New category…</option>
+          </select>
+        </div>
+      </div>
+      <div id="etpl-newcat-wrap" style="display:none" class="modal-field">
+        <label class="modal-label">New category name</label>
+        <input id="etpl-newcat" class="modal-input" placeholder="e.g. Marketing"/>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-primary" id="save-etpl-btn" style="flex:1">Save changes</button>
+        <button class="btn btn-ghost" id="cancel-etpl-btn" style="flex:0;width:auto;padding:10px 16px">Cancel</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); });
+  document.getElementById("cancel-etpl-btn").addEventListener("click", () => modal.remove());
+
+  document.getElementById("etpl-cat").addEventListener("change", e => {
+    document.getElementById("etpl-newcat-wrap").style.display =
+      e.target.value === "__new__" ? "block" : "none";
+  });
+
+  document.getElementById("save-etpl-btn").addEventListener("click", () => {
+    const name    = document.getElementById("etpl-name").value.trim();
+    const icon    = document.getElementById("etpl-icon").value.trim() || tpl.icon;
+    let   cat     = document.getElementById("etpl-cat").value;
+    if (cat === "__new__") {
+      cat = document.getElementById("etpl-newcat").value.trim();
+      if (!cat) return;
+      const cats = getCustomCategories();
+      if (!cats.includes(cat)) { cats.push(cat); saveCustomCategories(cats); }
+    }
+    if (!name) return;
+    saveCustomTemplate({ ...tpl, name, icon, cat });
+    modal.remove();
+    renderTemplates();
+    showToast("Template updated");
   });
 }
 
@@ -741,9 +951,8 @@ function renderTask(checklistId, groupId, task) {
   }
 
   return `
-    <div class="task-item${task.completed ? " completed" : ""}" data-task="${task.id}" data-group="${groupId}"
-         draggable="true">
-      <div class="drag-handle" title="Drag to reorder">⠿</div>
+    <div class="task-item${task.completed ? " completed" : ""}" data-task="${task.id}" data-group="${groupId}">
+      <div class="drag-handle" draggable="true" title="Drag to reorder">⠿</div>
       <div class="task-checkbox${task.completed ? " checked" : ""}" data-toggle data-task="${task.id}" data-group="${groupId}">
         ${task.completed ? `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>` : ""}
       </div>
@@ -856,17 +1065,19 @@ function bindTaskEvents(c) {
   let dragSrc     = null;  // currently dragged task element
   let dragGroupId = null;  // group the drag started in
 
-  area.querySelectorAll(".task-item[draggable]").forEach(el => {
-    el.addEventListener("dragstart", e => {
-      // Only allow drag via the handle
-      if (!e.target.closest(".drag-handle")) { e.preventDefault(); return; }
-      dragSrc     = el;
-      dragGroupId = el.dataset.group;
+  // Drag starts on the handle element itself (draggable="true" is on .drag-handle)
+  area.querySelectorAll(".drag-handle").forEach(handle => {
+    const taskEl = handle.closest(".task-item");
+
+    handle.addEventListener("dragstart", e => {
+      dragSrc     = taskEl;
+      dragGroupId = taskEl.dataset.group;
       e.dataTransfer.effectAllowed = "move";
-      setTimeout(() => el.classList.add("dragging"), 0);
+      e.dataTransfer.setData("text/plain", "task"); // needed for Firefox
+      setTimeout(() => taskEl.classList.add("dragging"), 0);
     });
 
-    el.addEventListener("dragend", () => {
+    handle.addEventListener("dragend", () => {
       dragSrc     = null;
       dragGroupId = null;
       area.querySelectorAll(".task-item").forEach(t => {
@@ -874,9 +1085,11 @@ function bindTaskEvents(c) {
         t.classList.remove("dragging");
       });
     });
+  });
 
+  // Drop targets are the task-items within the same group
+  area.querySelectorAll(".task-item").forEach(el => {
     el.addEventListener("dragover", e => {
-      // Reject if not a task drag or cross-group
       if (!dragSrc || el === dragSrc) return;
       if (el.dataset.group !== dragGroupId) return; // same group only
       e.preventDefault();
@@ -886,16 +1099,15 @@ function bindTaskEvents(c) {
     });
 
     el.addEventListener("dragleave", e => {
-      // Only remove highlight if leaving to something outside the task
       if (!el.contains(e.relatedTarget)) el.classList.remove("drag-over");
     });
 
     el.addEventListener("drop", e => {
       e.preventDefault();
-      e.stopPropagation(); // prevent group drop handler from firing
+      e.stopPropagation();
       el.classList.remove("drag-over");
       if (!dragSrc || dragSrc === el) return;
-      if (el.dataset.group !== dragGroupId) return; // same group only
+      if (el.dataset.group !== dragGroupId) return;
 
       const groupId   = dragGroupId;
       const srcTaskId = dragSrc.dataset.task;
