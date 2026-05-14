@@ -2,8 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!-- Disable viewport zooming on mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+
   <title>Rockd</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json"/>
+  <meta name="theme-color" content="#7c6fff"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Rockd"/>
+
+  <!-- Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
+  <link rel="apple-touch-icon" href="icon-180.png"/>
+
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
@@ -13,14 +28,18 @@
   <div class="auth-card">
 
     <div class="auth-logo">
-      <div class="auth-logo-mark">rk</div>
+      <div class="auth-logo-mark">
+        <svg viewBox="0 0 100 100" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+          <path d="M63 13 L36 50 L50 50 L26 87 L52 60 L38 60 L73 13 Z" fill="white"/>
+        </svg>
+      </div>
       <div>
         <div class="auth-logo-text">rockd</div>
         <div class="auth-logo-sub">GET THINGS ROCKD</div>
       </div>
     </div>
 
-    <!-- Login view (default) -->
+    <!-- Login -->
     <div id="view-login">
       <div class="auth-title">Welcome back</div>
       <div class="auth-sub">Sign in to your account to continue.</div>
@@ -39,13 +58,11 @@
         <svg class="google-icon" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
         Continue with Google
       </button>
-      <button id="btn-guest" class="btn btn-ghost" style="margin-top:8px">
-        👀 Try as Guest
-      </button>
+      <button id="btn-guest" class="btn btn-ghost" style="margin-top:8px">👀 Try as Guest</button>
       <div class="auth-footer">Don't have an account? <a href="#" id="go-register">Create one</a></div>
     </div>
 
-    <!-- Register view -->
+    <!-- Register -->
     <div id="view-register" style="display:none">
       <div class="auth-title">Create account</div>
       <div class="auth-sub">Join Rockd and start getting things done.</div>
@@ -80,7 +97,11 @@
   <!-- Sidebar (desktop only) -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <div class="logo-mark">rk</div>
+      <div class="logo-mark">
+        <svg viewBox="0 0 100 100" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+          <path d="M63 13 L36 50 L50 50 L26 87 L52 60 L38 60 L73 13 Z" fill="white"/>
+        </svg>
+      </div>
       <div>
         <div class="logo-text">rockd</div>
         <div class="logo-sub">CHECKLIST APP</div>
@@ -88,17 +109,21 @@
     </div>
 
     <nav class="sidebar-nav">
-      <div class="nav-item active" data-view="dashboard" id="nav-dashboard">
+      <div class="nav-item active" data-view="dashboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
         Dashboard
       </div>
-      <div class="nav-item" data-view="templates" id="nav-templates">
+      <div class="nav-item" data-view="templates">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         Templates
       </div>
-      <div class="nav-item" data-view="archive" id="nav-archive">
+      <div class="nav-item" data-view="archive">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
         Archive
+      </div>
+      <div class="nav-item" data-view="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
       </div>
     </nav>
 
@@ -130,14 +155,18 @@
   <!-- Main content -->
   <main class="main" id="main">
 
-    <!-- Mobile nav — single bar, no duplicate titles or signout buttons -->
+    <!-- Mobile top nav -->
     <div class="mobile-nav" id="mobile-nav">
       <button class="btn btn-ghost btn-icon" id="btn-mobile-back" style="display:none" title="Back">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <div class="logo-mark" id="mobile-logo" style="width:28px;height:28px;font-size:12px">rk</div>
-      <div style="font-size:14px;font-weight:700;flex:1;padding-left:10px" id="mobile-title">Dashboard</div>
-      <button class="btn btn-ghost btn-sm" id="btn-signout-mobile">Sign out</button>
+      <div style="display:flex;align-items:center;gap:8px;flex:1">
+        <div id="mobile-logo" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;background:var(--accent);border-radius:8px;flex-shrink:0">
+          <svg viewBox="0 0 100 100" width="14" height="14"><path d="M63 13 L36 50 L50 50 L26 87 L52 60 L38 60 L73 13 Z" fill="white"/></svg>
+        </div>
+        <div style="font-size:14px;font-weight:700" id="mobile-title">Dashboard</div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-new-mobile" style="display:none">✦ New</button>
     </div>
 
     <!-- Desktop topbar -->
@@ -151,6 +180,30 @@
     </div>
 
     <div class="content" id="content"></div>
+
+    <!-- Mobile bottom nav bar -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+      <button class="mobile-nav-item active" data-view="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Home</span>
+      </button>
+      <button class="mobile-nav-item" data-view="templates">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>Templates</span>
+      </button>
+      <button class="mobile-nav-fab" id="btn-new-fab" title="New Checklist">
+        <svg viewBox="0 0 100 100" width="22" height="22"><path d="M63 13 L36 50 L50 50 L26 87 L52 60 L38 60 L73 13 Z" fill="white"/></svg>
+      </button>
+      <button class="mobile-nav-item" data-view="archive">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/></svg>
+        <span>Archive</span>
+      </button>
+      <button class="mobile-nav-item" data-view="settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Settings</span>
+      </button>
+    </nav>
+
   </main>
 </div>
 
@@ -177,27 +230,25 @@
   // ── View switching ────────────────────────────────────────────────────
   document.getElementById("go-register").addEventListener("click", e => {
     e.preventDefault();
-    viewLogin.style.display    = "none";
-    viewRegister.style.display = "block";
+    viewLogin.style.display = "none"; viewRegister.style.display = "block";
     loginError.classList.remove("visible");
   });
   document.getElementById("go-login").addEventListener("click", e => {
     e.preventDefault();
-    viewRegister.style.display = "none";
-    viewLogin.style.display    = "block";
+    viewRegister.style.display = "none"; viewLogin.style.display = "block";
     registerError.classList.remove("visible");
   });
 
   function showError(el, msg) { el.textContent = msg; el.classList.add("visible"); }
   function setLoading(btn, loading) {
-    btn.disabled  = loading;
+    btn.disabled = loading;
     btn.innerHTML = loading ? '<div class="spinner"></div>' : btn.dataset.label;
   }
   document.querySelectorAll(".btn").forEach(b => b.dataset.label = b.innerHTML);
 
-  // ── Login ─────────────────────────────────────────────────────────────
+  // ── Auth actions ──────────────────────────────────────────────────────
   document.getElementById("btn-login").addEventListener("click", async () => {
-    const btn   = document.getElementById("btn-login");
+    const btn = document.getElementById("btn-login");
     const email = document.getElementById("login-email").value.trim();
     const pass  = document.getElementById("login-password").value;
     loginError.classList.remove("visible");
@@ -210,12 +261,11 @@
     if (e.key === "Enter") document.getElementById("btn-login").click();
   });
 
-  // ── Register ──────────────────────────────────────────────────────────
   document.getElementById("btn-register").addEventListener("click", async () => {
-    const btn   = document.getElementById("btn-register");
-    const name  = document.getElementById("reg-name").value.trim();
-    const email = document.getElementById("reg-email").value.trim();
-    const pass  = document.getElementById("reg-password").value;
+    const btn  = document.getElementById("btn-register");
+    const name = document.getElementById("reg-name").value.trim();
+    const email= document.getElementById("reg-email").value.trim();
+    const pass = document.getElementById("reg-password").value;
     registerError.classList.remove("visible");
     if (!name || !email || !pass) return showError(registerError, "Please fill in all fields.");
     setLoading(btn, true);
@@ -223,7 +273,6 @@
     catch (err) { showError(registerError, authErrorMessage(err.code)); setLoading(btn, false); }
   });
 
-  // ── Google ────────────────────────────────────────────────────────────
   async function handleGoogle(errorEl) {
     errorEl.classList.remove("visible");
     try { await loginWithGoogle(); }
@@ -236,20 +285,18 @@
   document.getElementById("btn-guest").addEventListener("click", () => {
     authScreen.style.display = "none";
     appShell.style.display   = "grid";
-    document.getElementById("sidebar-name").textContent  = "Guest";
+    document.getElementById("sidebar-name").textContent   = "Guest";
     document.getElementById("sidebar-avatar").textContent = "G";
     document.getElementById("guest-badge").style.display  = "block";
-    import("./app.js").then(m => m.initApp(null)); // null = guest
+    import("./app.js").then(m => m.initApp(null));
   });
 
   // ── Sign out ──────────────────────────────────────────────────────────
   async function handleSignOut() {
-    await logout();
-    // Also handle guest sign-out
+    try { await logout(); } catch(e) {}
     authScreen.style.display = "flex";
     appShell.style.display   = "none";
   }
-  document.getElementById("btn-signout-mobile").addEventListener("click", handleSignOut);
   document.getElementById("btn-signout").addEventListener("click", handleSignOut);
 
   // ── Auth state ────────────────────────────────────────────────────────
@@ -257,20 +304,14 @@
     if (user) {
       authScreen.style.display = "none";
       appShell.style.display   = "grid";
-
       const name     = user.displayName || user.email.split("@")[0];
       const initials = name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
-      document.getElementById("sidebar-name").textContent = name;
+      document.getElementById("sidebar-name").textContent  = name;
       document.getElementById("guest-badge").style.display = "none";
-
       const avatarEl = document.getElementById("sidebar-avatar");
-      avatarEl.innerHTML = user.photoURL
-        ? `<img src="${user.photoURL}" alt="${name}"/>`
-        : initials;
-
+      avatarEl.innerHTML = user.photoURL ? `<img src="${user.photoURL}" alt="${name}"/>` : initials;
       import("./app.js").then(m => m.initApp(user));
     } else {
-      // Only show auth if not in guest mode
       if (appShell.style.display === "none" || appShell.style.display === "") {
         authScreen.style.display = "flex";
       }

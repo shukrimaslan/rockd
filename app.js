@@ -67,14 +67,36 @@ function setView(view, checklistId = null) {
   if (view === "dashboard") renderDashboard();
   if (view === "templates") renderTemplates();
   if (view === "archive")   renderArchive();
+  if (view === "settings")  renderSettings();
   if (view === "detail")    renderDetail(checklistId);
+
+  // Mobile bottom nav active state
+  document.querySelectorAll(".mobile-nav-item").forEach(n =>
+    n.classList.toggle("active", n.dataset.view === view));
+
+  // Show/hide mobile New button (only on dashboard/detail)
+  const newMobile = document.getElementById("btn-new-mobile");
+  if (newMobile) newMobile.style.display = (view === "dashboard") ? "flex" : "none";
 }
 
 // Mobile back button
 document.getElementById("btn-mobile-back").addEventListener("click", () => setView("dashboard"));
 
+// Desktop sidebar nav
 document.querySelectorAll(".nav-item").forEach(item =>
   item.addEventListener("click", () => setView(item.dataset.view)));
+
+// Mobile bottom nav
+document.querySelectorAll(".mobile-nav-item").forEach(item =>
+  item.addEventListener("click", () => setView(item.dataset.view)));
+
+// FAB button (mobile center)
+const fab = document.getElementById("btn-new-fab");
+if (fab) fab.addEventListener("click", showNewChecklistModal);
+
+// Mobile top new button
+const newMobileBtn = document.getElementById("btn-new-mobile");
+if (newMobileBtn) newMobileBtn.addEventListener("click", showNewChecklistModal);
 
 document.getElementById("btn-new").addEventListener("click", showNewChecklistModal);
 
@@ -1419,4 +1441,234 @@ function showNewChecklistModal() {
 
   document.getElementById("create-cl-btn").addEventListener("click", create);
   document.getElementById("new-cl-name").addEventListener("keydown", e => { if (e.key === "Enter") create(); });
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────
+import {
+  doc as fsDoc, getDoc, setDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const DEFAULT_PREFS = {
+  theme:       "dark",
+  fontSize:    "normal",
+  accentColor: "#7c6fff",
+  displayName: "",
+  avatarUrl:   ""
+};
+
+let userPrefs = { ...DEFAULT_PREFS };
+
+// Load prefs on init — called after initApp
+export async function loadUserPrefs(user) {
+  if (!user) return; // guest — use localStorage
+  try {
+    const snap = await getDoc(fsDoc(db, "users", user.uid));
+    if (snap.exists()) {
+      userPrefs = { ...DEFAULT_PREFS, ...snap.data() };
+      applyPrefs();
+    }
+  } catch(e) { console.warn("Could not load prefs", e); }
+}
+
+function applyPrefs() {
+  // Accent colour
+  document.documentElement.style.setProperty("--accent",      userPrefs.accentColor);
+  document.documentElement.style.setProperty("--accent2",     shadeColor(userPrefs.accentColor, -20));
+  document.documentElement.style.setProperty("--accent-glow", hexToRgba(userPrefs.accentColor, 0.15));
+
+  // Font size
+  const sizes = { small: "11px", normal: "13px", large: "15px" };
+  document.documentElement.style.setProperty("--font-size-base", sizes[userPrefs.fontSize] || "13px");
+  document.body.style.fontSize = sizes[userPrefs.fontSize] || "13px";
+}
+
+async function savePrefs(changes) {
+  userPrefs = { ...userPrefs, ...changes };
+  applyPrefs();
+  if (isGuest) return;
+  try {
+    await setDoc(fsDoc(db, "users", currentUser.uid), userPrefs, { merge: true });
+  } catch(e) { console.error("Failed to save prefs", e); showToast("Failed to save settings", "error"); }
+}
+
+// Colour helpers
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+function shadeColor(hex, pct) {
+  const num = parseInt(hex.slice(1), 16);
+  const amt = Math.round(2.55 * pct);
+  const R = Math.min(255, Math.max(0, (num >> 16) + amt));
+  const G = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amt));
+  const B = Math.min(255, Math.max(0, (num & 0xff) + amt));
+  return `#${((1<<24)+(R<<16)+(G<<8)+B).toString(16).slice(1)}`;
+}
+
+function renderSettings() {
+  const ACCENT_PRESETS = [
+    "#7c6fff","#5a3fff","#ff4d6d","#ff6ab2","#ffb020",
+    "#00d97e","#3d9fff","#00d4d4","#a78bfa","#f97316"
+  ];
+  const FONT_SIZES = [
+    { id: "small",  label: "Small",  desc: "Compact, more on screen" },
+    { id: "normal", label: "Normal", desc: "Default size" },
+    { id: "large",  label: "Large",  desc: "Easier to read" }
+  ];
+
+  document.getElementById("content").innerHTML = `
+    <div style="max-width:560px;margin:0 auto">
+
+      <!-- Profile -->
+      <div class="settings-section">
+        <div class="settings-section-title">Profile</div>
+        <div class="settings-card">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+            <div class="avatar" id="settings-avatar" style="width:52px;height:52px;font-size:18px">
+              ${currentUser?.photoURL
+                ? `<img src="${currentUser.photoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`
+                : (userPrefs.displayName || currentUser?.displayName || "?")[0].toUpperCase()}
+            </div>
+            <div>
+              <div style="font-size:15px;font-weight:700">${userPrefs.displayName || currentUser?.displayName || "Guest"}</div>
+              <div style="font-size:12px;color:var(--text3)">${currentUser?.email || "Guest mode"}</div>
+            </div>
+          </div>
+          <div class="modal-field">
+            <label class="modal-label">Display name</label>
+            <input id="pref-name" class="modal-input" value="${userPrefs.displayName || currentUser?.displayName || ""}" placeholder="Your name"/>
+          </div>
+          <button class="btn btn-primary btn-sm" id="save-profile-btn" style="width:auto">Save profile</button>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="settings-section">
+        <div class="settings-section-title">Appearance</div>
+        <div class="settings-card">
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Theme</div>
+              <div class="settings-desc">Light or dark interface</div>
+            </div>
+            <button class="theme-btn" id="settings-theme-toggle" title="Toggle theme" style="width:44px;height:24px">
+              <div class="theme-btn-knob" id="settings-theme-knob" style="left:${isDark?"2px":"22px"};width:18px;height:18px;top:2px"></div>
+            </button>
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-label" style="margin-bottom:10px">Font size</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${FONT_SIZES.map(f => `
+              <button class="font-size-btn${userPrefs.fontSize===f.id?" active":""}" data-size="${f.id}">
+                <span style="font-size:${f.id==="small"?"11px":f.id==="large"?"16px":"13px"};font-weight:600">Aa</span>
+                <span style="font-size:10px;color:var(--text3);margin-top:2px">${f.label}</span>
+              </button>`).join("")}
+          </div>
+
+          <div class="settings-divider"></div>
+
+          <div class="settings-label" style="margin-bottom:10px">Accent colour</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="accent-swatches">
+            ${ACCENT_PRESETS.map(c => `
+              <div class="accent-swatch${userPrefs.accentColor===c?" selected":""}" data-color="${c}"
+                   style="background:${c};width:28px;height:28px;border-radius:50%;cursor:pointer;
+                          border:2px solid ${userPrefs.accentColor===c?"white":"transparent"};
+                          transition:all .15s;box-shadow:${userPrefs.accentColor===c?"0 0 0 2px "+c:"none"}">
+              </div>`).join("")}
+            <div style="position:relative">
+              <input type="color" id="accent-custom" value="${userPrefs.accentColor}"
+                     style="width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid var(--border2);padding:0;background:none"/>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      ${!isGuest ? `
+      <!-- Danger zone -->
+      <div class="settings-section">
+        <div class="settings-section-title" style="color:var(--red)">Danger zone</div>
+        <div class="settings-card" style="border-color:rgba(255,77,109,.2)">
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Sign out</div>
+              <div class="settings-desc">Sign out from this device</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" id="settings-signout" style="width:auto">Sign out</button>
+          </div>
+        </div>
+      </div>` : `
+      <!-- Guest banner -->
+      <div class="settings-card" style="border-color:rgba(255,176,32,.3);background:rgba(255,176,32,.06);text-align:center;padding:20px">
+        <div style="font-size:18px;margin-bottom:8px">👀</div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px">You're in Guest mode</div>
+        <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Settings won't sync across devices. Create an account to save everything.</div>
+        <a href="." class="btn btn-primary btn-sm" style="width:auto;display:inline-flex">Create account</a>
+      </div>`}
+
+    </div>`;
+
+  // Profile save
+  document.getElementById("save-profile-btn")?.addEventListener("click", async () => {
+    const name = document.getElementById("pref-name").value.trim();
+    if (!name) return;
+    await savePrefs({ displayName: name });
+    document.getElementById("sidebar-name").textContent = name;
+    showToast("Profile updated");
+  });
+
+  // Theme toggle in settings
+  document.getElementById("settings-theme-toggle")?.addEventListener("click", () => {
+    isDark = !isDark;
+    applyTheme();
+    const knob = document.getElementById("settings-theme-knob");
+    if (knob) knob.style.left = isDark ? "2px" : "22px";
+    savePrefs({ theme: isDark ? "dark" : "light" });
+  });
+
+  // Font size
+  document.querySelectorAll(".font-size-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".font-size-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      savePrefs({ fontSize: btn.dataset.size });
+      showToast(`Font size: ${btn.dataset.size}`);
+    });
+  });
+
+  // Accent swatches
+  document.querySelectorAll(".accent-swatch").forEach(sw => {
+    sw.addEventListener("click", () => {
+      document.querySelectorAll(".accent-swatch").forEach(s => {
+        s.style.borderColor = "transparent";
+        s.style.boxShadow   = "none";
+        s.classList.remove("selected");
+      });
+      sw.style.borderColor = "white";
+      sw.style.boxShadow   = `0 0 0 2px ${sw.dataset.color}`;
+      sw.classList.add("selected");
+      savePrefs({ accentColor: sw.dataset.color });
+    });
+  });
+
+  // Custom colour picker
+  document.getElementById("accent-custom")?.addEventListener("input", e => {
+    document.querySelectorAll(".accent-swatch").forEach(s => {
+      s.style.borderColor = "transparent"; s.style.boxShadow = "none";
+    });
+    savePrefs({ accentColor: e.target.value });
+  });
+
+  // Sign out
+  document.getElementById("settings-signout")?.addEventListener("click", async () => {
+    const { logout: lo } = await import("./auth.js");
+    await lo();
+    document.getElementById("auth-screen").style.display = "flex";
+    document.getElementById("app").style.display = "none";
+  });
 }
