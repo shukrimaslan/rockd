@@ -4,7 +4,7 @@ import { db } from "./firebase.js";
 import {
   collection, query, where, orderBy,
   onSnapshot, doc, updateDoc, deleteDoc,
-  addDoc, serverTimestamp
+  addDoc, serverTimestamp, getDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 let currentUser     = null;
@@ -929,7 +929,7 @@ function renderGroup(checklistId, group) {
   return `
     <div class="task-group" data-group="${group.id}">
       <div class="task-group-header" data-collapse="${group.id}" style="cursor:pointer">
-        <span class="group-drag-handle" title="Drag to reorder group" onclick="event.stopPropagation()">⠿</span>
+        <span class="group-drag-handle" title="Drag to reorder group">⠿</span>
         <span class="task-group-chevron${collapsed ? "" : " open"}">▸</span>
         <span class="task-group-title" contenteditable="true" spellcheck="false"
               style="outline:none;border-bottom:1px dashed transparent;cursor:text;flex:1"
@@ -941,8 +941,8 @@ function renderGroup(checklistId, group) {
       <div class="task-list" data-group-body="${group.id}" style="display:${collapsed?"none":"block"}">
         ${(group.tasks || []).map(task => renderTask(checklistId, group.id, task)).join("")}
         <div class="add-task-row" data-group="${group.id}">
-          <span style="color:var(--text3);font-size:13px">＋</span>
-          <input class="add-task-input" placeholder="Add a task… (Enter to save)" data-group="${group.id}"/>
+          <input class="add-task-input" placeholder="Add a task…" data-group="${group.id}"/>
+          <button class="add-task-btn" data-group="${group.id}" title="Add task">＋</button>
         </div>
       </div>
     </div>`;
@@ -1081,12 +1081,25 @@ function bindTaskEvents(c) {
     });
   });
 
-  // Add task on Enter
+  // Add task on Enter or tap ＋ button
   area.querySelectorAll(".add-task-input").forEach(inp => {
     inp.addEventListener("keydown", e => {
       if (e.key === "Enter" && inp.value.trim()) {
         doAddTask(c.id, inp.dataset.group, inp.value.trim(), c.groups || []);
         inp.value = "";
+      }
+    });
+  });
+
+  area.querySelectorAll(".add-task-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const inp = area.querySelector(`.add-task-input[data-group="${btn.dataset.group}"]`);
+      if (inp && inp.value.trim()) {
+        doAddTask(c.id, btn.dataset.group, inp.value.trim(), c.groups || []);
+        inp.value = "";
+        inp.focus();
+      } else if (inp) {
+        inp.focus();
       }
     });
   });
@@ -1400,7 +1413,7 @@ function showNewChecklistModal() {
   document.body.appendChild(modal);
   modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); });
   document.getElementById("cancel-cl-btn").addEventListener("click", () => modal.remove());
-  document.getElementById("new-cl-name").focus();
+  if (window.innerWidth > 768) document.getElementById("new-cl-name").focus();
 
   let selectedColor = COLORS[0];
   modal.querySelectorAll(".color-swatch").forEach(sw => {
@@ -1452,9 +1465,7 @@ function showNewChecklistModal() {
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────
-import {
-  doc as fsDoc, getDoc, setDoc
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 
 const DEFAULT_PREFS = {
   theme:       "dark",
@@ -1470,7 +1481,7 @@ let userPrefs = { ...DEFAULT_PREFS };
 export async function loadUserPrefs(user) {
   if (!user) return; // guest — use localStorage
   try {
-    const snap = await getDoc(fsDoc(db, "users", user.uid));
+    const snap = await getDoc(doc(db, "users", user.uid));
     if (snap.exists()) {
       userPrefs = { ...DEFAULT_PREFS, ...snap.data() };
       applyPrefs();
@@ -1509,7 +1520,7 @@ async function savePrefs(changes) {
     return;
   }
   try {
-    await setDoc(fsDoc(db, "users", currentUser.uid), userPrefs, { merge: true });
+    await setDoc(doc(db, "users", currentUser.uid), userPrefs, { merge: true });
   } catch(e) { console.error("Failed to save prefs", e); showToast("Failed to save settings", "error"); }
 }
 
