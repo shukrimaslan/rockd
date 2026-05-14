@@ -9,7 +9,7 @@
 
 ---
 
-![Rockd App Screenshot](icon-512.png)
+![Rockd App Screenshot](icon-180.png)
 
 ---
 
