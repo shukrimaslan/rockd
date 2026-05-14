@@ -13,18 +13,21 @@ let currentDetailId = null;
 let checklists      = [];
 let isGuest         = false;
 
-// ─── Persist theme across refreshes ───────────────────────────────────────
+// ─── Theme — applied on load from localStorage, then overridden by applyPrefs on login ──
 let isDark = localStorage.getItem("rockd-theme") !== "light";
 function applyTheme() {
   document.body.classList.toggle("light", !isDark);
-  document.getElementById("theme-knob").style.left = isDark ? "2px" : "18px";
+  const knob = document.getElementById("theme-knob");
+  if (knob) knob.style.left = isDark ? "2px" : "18px";
   localStorage.setItem("rockd-theme", isDark ? "dark" : "light");
 }
-applyTheme(); // apply on load before anything else
+applyTheme(); // fast initial paint from localStorage
 
 document.getElementById("theme-toggle").addEventListener("click", () => {
   isDark = !isDark;
   applyTheme();
+  // If logged in, persist to Firestore via savePrefs
+  if (currentUser && !isGuest) savePrefs({ theme: isDark ? "dark" : "light" });
 });
 
 // ─── Toast ────────────────────────────────────────────────────────────────
@@ -101,19 +104,24 @@ if (newMobileBtn) newMobileBtn.addEventListener("click", showNewChecklistModal);
 document.getElementById("btn-new").addEventListener("click", showNewChecklistModal);
 
 // ─── Init ─────────────────────────────────────────────────────────────────
-export function initApp(user) {
+export async function initApp(user) {
   currentUser = user;
   isGuest     = !user;
 
   if (isGuest) {
-    // Guest mode — use localStorage only, no Firestore
     checklists = JSON.parse(localStorage.getItem("rockd-guest-lists") || "[]");
+    // Load guest prefs from localStorage
+    const saved = JSON.parse(localStorage.getItem("rockd-guest-prefs") || "{}");
+    userPrefs = { ...DEFAULT_PREFS, ...saved };
+    applyPrefs();
     renderSidebar();
     setView("dashboard");
     showToast("Guest mode — lists won't be saved after closing");
     return;
   }
 
+  // Load user prefs FIRST before rendering anything
+  await loadUserPrefs(user);
   listenChecklists();
   setView("dashboard");
 }
@@ -1471,21 +1479,35 @@ export async function loadUserPrefs(user) {
 }
 
 function applyPrefs() {
-  // Accent colour
-  document.documentElement.style.setProperty("--accent",      userPrefs.accentColor);
-  document.documentElement.style.setProperty("--accent2",     shadeColor(userPrefs.accentColor, -20));
-  document.documentElement.style.setProperty("--accent-glow", hexToRgba(userPrefs.accentColor, 0.15));
+  // Accent colour — set on :root so it overrides both dark AND light theme values
+  const root = document.documentElement;
+  root.style.setProperty("--accent",      userPrefs.accentColor);
+  root.style.setProperty("--accent2",     shadeColor(userPrefs.accentColor, -20));
+  root.style.setProperty("--accent-glow", hexToRgba(userPrefs.accentColor, 0.15));
 
-  // Font size
-  const sizes = { small: "11px", normal: "13px", large: "15px" };
-  document.documentElement.style.setProperty("--font-size-base", sizes[userPrefs.fontSize] || "13px");
-  document.body.style.fontSize = sizes[userPrefs.fontSize] || "13px";
+  // Font size — set a root px size, then all CSS uses rem so everything scales
+  const rootSizes = { small: "11px", normal: "13px", large: "15px" };
+  root.style.fontSize = rootSizes[userPrefs.fontSize] || "13px";
+  // Store as attribute for CSS selectors if needed
+  root.setAttribute("data-font-size", userPrefs.fontSize || "normal");
+
+  // Theme — sync isDark var and apply
+  if (userPrefs.theme) {
+    isDark = userPrefs.theme !== "light";
+    document.body.classList.toggle("light", !isDark);
+    const knob = document.getElementById("theme-knob");
+    if (knob) knob.style.left = isDark ? "2px" : "18px";
+    localStorage.setItem("rockd-theme", userPrefs.theme);
+  }
 }
 
 async function savePrefs(changes) {
   userPrefs = { ...userPrefs, ...changes };
   applyPrefs();
-  if (isGuest) return;
+  if (isGuest) {
+    localStorage.setItem("rockd-guest-prefs", JSON.stringify(userPrefs));
+    return;
+  }
   try {
     await setDoc(fsDoc(db, "users", currentUser.uid), userPrefs, { merge: true });
   } catch(e) { console.error("Failed to save prefs", e); showToast("Failed to save settings", "error"); }
