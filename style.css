@@ -610,3 +610,33 @@ select.modal-input {
 
 .accent-swatch { transition: all .15s; flex-shrink: 0; }
 .accent-swatch:hover { transform: scale(1.15); }
+
+/* ─── AI GENERATOR ───────────────────────────────────────────────────────── */
+.prompt-suggestions {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+}
+.prompt-chip {
+  font-size: 0.77rem; padding: 5px 10px; border-radius: 20px;
+  background: var(--bg3); border: 1px solid var(--border2);
+  cursor: pointer; color: var(--text2); transition: all .15s;
+  font-family: var(--mono); white-space: nowrap;
+}
+.prompt-chip:hover {
+  border-color: var(--accent); color: var(--accent);
+  background: var(--accent-glow);
+}
+
+#ai-preview { animation: slideUp .2s ease; }
+
+#preview-groups::-webkit-scrollbar       { width: 3px; }
+#preview-groups::-webkit-scrollbar-thumb { background: var(--border3); border-radius: 3px; }
+
+/* Spinner inside button */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block; vertical-align: middle;
+}

@@ -1378,8 +1378,269 @@ async function deleteChecklist(id) {
   } catch(err) { showToast("Failed to delete", "error"); }
 }
 
+// ─── AI Generator Engine ──────────────────────────────────────────────────
+// Smart keyword matching — no API required, instant, works offline.
+// Each entry maps a topic to a suggested template structure.
+
+const AI_KNOWLEDGE_BASE = [
+
+  // ── Design & Development ─────────────────────────────────────────────
+  { keywords: ["website", "web", "site", "landing page", "homepage", "redesign", "frontend", "ui", "ux"],
+    icon: "🌐", color: "#7c6fff", cat: "Design",
+    name: "Website Project",
+    groups: [
+      { name: "Design",    tasks: ["Wireframes & layout", "Design system / style guide", "Mobile responsive design", "Accessibility review"] },
+      { name: "Build",     tasks: ["Set up project repo", "Frontend development", "CMS or backend integration", "Performance optimisation"] },
+      { name: "Content",   tasks: ["Copywriting", "Image & asset sourcing", "SEO meta tags", "OG images"] },
+      { name: "Launch",    tasks: ["Cross-browser testing", "Mobile testing", "DNS & hosting setup", "Go-live checklist"] }
+    ]},
+
+  { keywords: ["app", "mobile", "ios", "android", "flutter", "react native", "product", "saas", "feature"],
+    icon: "📱", color: "#3d9fff", cat: "Design",
+    name: "Product Launch",
+    groups: [
+      { name: "Pre-launch",  tasks: ["Define MVP scope", "User research & testing", "Beta invites sent", "Press kit ready"] },
+      { name: "Launch",      tasks: ["Publish to stores / go live", "Announce on social media", "Email list notification", "Submit to directories & Product Hunt"] },
+      { name: "Post-launch", tasks: ["Monitor crash reports & analytics", "Respond to user feedback", "Fix critical bugs", "Plan next iteration"] }
+    ]},
+
+  { keywords: ["brand", "branding", "logo", "identity", "visual", "rebrand"],
+    icon: "🎨", color: "#ff6ab2", cat: "Design",
+    name: "Brand Identity Project",
+    groups: [
+      { name: "Discovery",  tasks: ["Brand questionnaire", "Competitor analysis", "Moodboard", "Define brand values"] },
+      { name: "Design",     tasks: ["Logo concepts (3 directions)", "Colour palette", "Typography system", "Brand collateral"] },
+      { name: "Handoff",    tasks: ["Brand guidelines document", "Asset export (SVG, PNG, PDF)", "Final presentation", "Client sign-off"] }
+    ]},
+
+  // ── Client & Freelance ───────────────────────────────────────────────
+  { keywords: ["client", "onboard", "onboarding", "kickoff", "new client", "brief"],
+    icon: "🤝", color: "#00d97e", cat: "Freelance",
+    name: "Client Onboarding",
+    groups: [
+      { name: "Admin",      tasks: ["Send welcome email", "Contract & NDA signed", "Invoice for deposit", "Schedule kickoff call"] },
+      { name: "Discovery",  tasks: ["Brand questionnaire sent", "Gather assets & credentials", "Define project scope", "Set milestones & deadlines"] },
+      { name: "Setup",      tasks: ["Create shared project folder", "Set up communication channel", "Add to project management tool", "Brief team if applicable"] }
+    ]},
+
+  { keywords: ["invoice", "payment", "billing", "overdue", "follow up", "chase", "money", "quote", "proposal"],
+    icon: "💰", color: "#ffb020", cat: "Freelance",
+    name: "Invoice & Payment",
+    groups: [
+      { name: "Prepare",    tasks: ["Verify deliverables are complete", "Check invoice details & amount", "Review payment terms"] },
+      { name: "Send",       tasks: ["Send invoice via email", "Attach supporting documents", "Log in accounting system"] },
+      { name: "Follow-up",  tasks: ["7-day payment reminder", "14-day follow-up call", "30-day final notice", "Escalate if unresolved"] }
+    ]},
+
+  { keywords: ["freelance", "project", "deliverable", "handoff", "handover", "hand off"],
+    icon: "🔄", color: "#00d4d4", cat: "Freelance",
+    name: "Project Handoff",
+    groups: [
+      { name: "Documentation", tasks: ["Write project overview doc", "Document all active tasks", "List credentials & access", "Note key decisions made"] },
+      { name: "Files",         tasks: ["Organise final files", "Export all assets", "Upload to shared drive", "Remove personal accounts"] },
+      { name: "Transition",    tasks: ["Schedule handoff meeting", "Walk through codebase / files", "Introduce to key contacts", "Confirm receipt & sign-off"] }
+    ]},
+
+  // ── Marketing & Content ──────────────────────────────────────────────
+  { keywords: ["content", "blog", "article", "post", "publish", "write", "newsletter", "copywriting", "editorial"],
+    icon: "📝", color: "#ffb020", cat: "Work",
+    name: "Content Publishing",
+    groups: [
+      { name: "Write",      tasks: ["Research & outline", "First draft", "Editing & proofreading", "SEO keyword integration"] },
+      { name: "Publish",    tasks: ["Header image created", "Meta description written", "Schedule or publish", "Canonical URL set"] },
+      { name: "Promote",    tasks: ["Share on social media", "Send to email list", "Cross-post to Medium/LinkedIn", "Notify any mentioned brands"] }
+    ]},
+
+  { keywords: ["social media", "instagram", "tiktok", "twitter", "linkedin", "campaign", "marketing", "ads", "paid"],
+    icon: "📣", color: "#ff4d6d", cat: "Work",
+    name: "Marketing Campaign",
+    groups: [
+      { name: "Strategy",   tasks: ["Define campaign goal & KPIs", "Target audience research", "Budget allocation", "Platform selection"] },
+      { name: "Creative",   tasks: ["Creative brief", "Copy & visuals production", "Internal review & approval", "Prepare ad sets"] },
+      { name: "Launch",     tasks: ["Schedule posts / go live", "Set up tracking & UTMs", "Monitor performance daily", "Optimise based on data"] }
+    ]},
+
+  { keywords: ["event", "conference", "meetup", "webinar", "workshop", "seminar", "launch event", "party"],
+    icon: "🎉", color: "#a78bfa", cat: "Work",
+    name: "Event Planning",
+    groups: [
+      { name: "Planning",   tasks: ["Define event goal & audience", "Set date, time & format", "Book venue or platform", "Set budget"] },
+      { name: "Logistics",  tasks: ["Send invitations", "Prepare agenda & run sheet", "AV & tech setup", "Catering or F&B if applicable"] },
+      { name: "Post-event", tasks: ["Send thank you emails", "Share recordings or slides", "Gather feedback", "Document lessons learned"] }
+    ]},
+
+  // ── Personal & Life ──────────────────────────────────────────────────
+  { keywords: ["travel", "trip", "holiday", "vacation", "fly", "flight", "packing", "pack", "luggage"],
+    icon: "✈️", color: "#3d9fff", cat: "Personal",
+    name: "Travel Packing",
+    groups: [
+      { name: "Documents",  tasks: ["Passport valid & accessible", "Visa arranged if needed", "Travel insurance", "Hotel & flight confirmations printed/saved"] },
+      { name: "Clothing",   tasks: ["T-shirts", "Pants / shorts", "Underwear & socks", "Jacket or rain layer", "Smart outfit if needed"] },
+      { name: "Essentials", tasks: ["Phone charger & adapter", "Power bank", "Medications", "Cash & cards", "Toiletries & sunscreen"] }
+    ]},
+
+  { keywords: ["move", "moving", "house", "apartment", "relocation", "new home", "flat"],
+    icon: "🏠", color: "#00d97e", cat: "Personal",
+    name: "Moving House",
+    groups: [
+      { name: "Before",     tasks: ["Notify landlord / end lease", "Book removalist", "Start packing non-essentials", "Update address with bank, post, etc."] },
+      { name: "Moving day", tasks: ["Pack remaining items", "Clean old place", "Check all rooms & cupboards", "Hand over keys"] },
+      { name: "After",      tasks: ["Unpack essentials first", "Set up internet & utilities", "Register new address", "Explore the neighbourhood"] }
+    ]},
+
+  { keywords: ["wedding", "engagement", "propose", "ceremony", "reception", "marriage", "bride", "groom"],
+    icon: "💍", color: "#ff6ab2", cat: "Personal",
+    name: "Wedding Planning",
+    groups: [
+      { name: "Early planning", tasks: ["Set overall budget", "Agree on guest list size", "Book venue", "Choose date & lock in key vendors"] },
+      { name: "Details",        tasks: ["Send invitations", "Plan menu", "Order wedding cake", "Arrange flowers & decor", "Music & entertainment"] },
+      { name: "Week before",    tasks: ["Final venue walkthrough", "Confirm all vendors", "Prepare payments & tips", "Pack for honeymoon"] }
+    ]},
+
+  { keywords: ["baby", "pregnancy", "newborn", "nursery", "maternity", "parental leave", "birth"],
+    icon: "🍼", color: "#ffb020", cat: "Personal",
+    name: "Baby Preparation",
+    groups: [
+      { name: "Nursery",    tasks: ["Set up cot & bedding", "Baby monitor installed", "Storage & wardrobe organised", "Baby-proof the room"] },
+      { name: "Essentials", tasks: ["Nappies & wipes stocked", "Feeding supplies ready", "First aid kit", "Car seat installed & checked"] },
+      { name: "Admin",      tasks: ["Maternity/paternity leave arranged", "Paediatrician selected", "Birth plan written", "Hospital bag packed"] }
+    ]},
+
+  { keywords: ["health", "fitness", "gym", "workout", "diet", "nutrition", "weight", "exercise", "run", "marathon"],
+    icon: "💪", color: "#00d97e", cat: "Personal",
+    name: "Fitness Goal",
+    groups: [
+      { name: "Plan",       tasks: ["Define specific goal & timeline", "Book gym or classes", "Create weekly schedule", "Plan meals & nutrition"] },
+      { name: "Weekly",     tasks: ["Monday workout", "Wednesday workout", "Friday workout", "Weekly weigh-in or check-in"] },
+      { name: "Track",      tasks: ["Log workouts", "Take progress photos", "Review & adjust plan", "Celebrate milestones"] }
+    ]},
+
+  // ── Work & Teams ─────────────────────────────────────────────────────
+  { keywords: ["sprint", "agile", "scrum", "standup", "backlog", "kanban", "jira", "ticket", "story"],
+    icon: "🏃", color: "#7c6fff", cat: "Work",
+    name: "Sprint Planning",
+    groups: [
+      { name: "Planning",   tasks: ["Review & groom backlog", "Agree sprint goal", "Assign tickets to team", "Estimate story points"] },
+      { name: "Sprint",     tasks: ["Daily standups", "Unblock team issues", "Mid-sprint review", "Update ticket statuses"] },
+      { name: "Wrap-up",    tasks: ["Sprint demo / review", "Retrospective", "Update documentation", "Prep next sprint backlog"] }
+    ]},
+
+  { keywords: ["hire", "hiring", "recruit", "recruitment", "interview", "job", "candidate", "onboard employee"],
+    icon: "👥", color: "#3d9fff", cat: "Work",
+    name: "Hiring Pipeline",
+    groups: [
+      { name: "Sourcing",   tasks: ["Write & post job description", "Share on LinkedIn & job boards", "Screen incoming applications", "Shortlist candidates"] },
+      { name: "Interviews", tasks: ["Schedule first round interviews", "Prepare interview questions", "Conduct technical assessment", "Reference checks"] },
+      { name: "Offer",      tasks: ["Prepare offer letter", "Negotiate & confirm", "Initiate onboarding process", "Set up accounts & access"] }
+    ]},
+
+  { keywords: ["weekly review", "review", "retrospective", "reflect", "reflection", "planning", "goals", "week"],
+    icon: "📅", color: "#a78bfa", cat: "Personal",
+    name: "Weekly Review",
+    groups: [
+      { name: "Review",     tasks: ["What did I complete this week?", "What didn't get done and why?", "Energy & focus level review", "Wins worth celebrating"] },
+      { name: "Plan",       tasks: ["Top 3 goals for next week", "Any blockers to address early", "Schedule key tasks in calendar", "Anything to delegate or drop?"] }
+    ]},
+
+  { keywords: ["research", "study", "thesis", "dissertation", "paper", "academic", "assignment", "university"],
+    icon: "🎓", color: "#00d4d4", cat: "Work",
+    name: "Research Project",
+    groups: [
+      { name: "Setup",      tasks: ["Define research question", "Literature review", "Methodology decided", "Ethics approval if needed"] },
+      { name: "Research",   tasks: ["Data collection", "Interviews or surveys", "Data analysis", "Find supporting evidence"] },
+      { name: "Write-up",   tasks: ["Draft introduction", "Draft main body", "Draft conclusion", "Proofread & format citations"] }
+    ]},
+
+  // ── Catch-all / generic ──────────────────────────────────────────────
+  { keywords: ["plan", "planning", "prepare", "preparation", "organise", "organize", "manage", "checklist"],
+    icon: "📋", color: "#7c6fff", cat: "Work",
+    name: "Project Plan",
+    groups: [
+      { name: "Define",     tasks: ["Set clear goal & success criteria", "Identify stakeholders", "Scope & constraints", "Timeline & milestones"] },
+      { name: "Execute",    tasks: ["Kick off work", "Track progress weekly", "Manage blockers", "Communicate updates"] },
+      { name: "Close",      tasks: ["Final review", "Document outcomes", "Share learnings", "Celebrate completion"] }
+    ]}
+];
+
+// ─── Scoring engine ────────────────────────────────────────────────────────
+function scoreMatch(input, entry) {
+  const words = input.toLowerCase().split(/\s+/);
+  let score = 0;
+  for (const kw of entry.keywords) {
+    const kwWords = kw.split(' ');
+    // Exact phrase match scores higher
+    if (input.toLowerCase().includes(kw)) {
+      score += kwWords.length > 1 ? 10 : 5;
+    } else {
+      // Partial word match
+      for (const w of words) {
+        if (kw.includes(w) || w.includes(kw.split(' ')[0])) score += 1;
+      }
+    }
+  }
+  return score;
+}
+
+function generateFromPrompt(input) {
+  if (!input.trim()) return null;
+
+  // Score all entries
+  const scored = AI_KNOWLEDGE_BASE.map(entry => ({
+    entry,
+    score: scoreMatch(input, entry)
+  })).filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (!scored.length) return null;
+
+  const best = scored[0].entry;
+
+  // Derive a smart name from the input
+  // Capitalise each word, strip filler words
+  const fillers = new Set(["a","an","the","to","for","on","in","at","of","and","or","my","our","some","plan","make","create","build","start","set","up","me","i","want","need","help"]);
+  const nameParts = input.trim().split(/\s+/)
+    .filter(w => !fillers.has(w.toLowerCase()))
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
+  const smartName = nameParts.length
+    ? nameParts.join(" ")
+    : best.name;
+
+  return {
+    name:   smartName || best.name,
+    icon:   best.icon,
+    color:  best.color,
+    groups: best.groups.map((g, gi) => ({
+      id:        `g${gi}_${Date.now()}`,
+      name:      g.name,
+      collapsed: false,
+      tasks:     g.tasks.map((t, ti) => ({
+        id:        `t${gi}_${ti}_${Date.now()}`,
+        text:      t,
+        completed: false,
+        priority:  "medium",
+        date:      null
+      }))
+    }))
+  };
+}
+
+// ─── Prompt suggestions ────────────────────────────────────────────────────
+const PROMPT_SUGGESTIONS = [
+  "Plan a client website project",
+  "Prepare for a product launch",
+  "Organise a team handoff",
+  "Pack for a holiday trip",
+  "Set up a weekly review routine",
+  "Manage a social media campaign",
+  "Hire a new team member",
+  "Prepare for a baby",
+  "Plan a wedding",
+  "Track a fitness goal"
+];
+
 // ─── New Checklist modal ───────────────────────────────────────────────────
-function showNewChecklistModal() {
+function showNewChecklistModal(defaultTab = "manual") {
   const COLORS = ["#7c6fff","#00d97e","#3d9fff","#ffb020","#ff4d6d","#ff6ab2","#00d4d4"];
   const existing = document.getElementById("new-checklist-modal");
   if (existing) existing.remove();
@@ -1388,80 +1649,266 @@ function showNewChecklistModal() {
   modal.id = "new-checklist-modal";
   modal.className = "modal-backdrop";
   modal.innerHTML = `
-    <div class="modal">
-      <div class="modal-title">✦ New Checklist</div>
-      <div class="modal-sub">Give your checklist a name and colour.</div>
-      <div class="modal-field">
-        <label class="modal-label">Name</label>
-        <input id="new-cl-name" class="modal-input" placeholder="e.g. Website Redesign"/>
+    <div class="modal" style="max-width:560px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div class="modal-title" style="margin-bottom:0">✦ New Checklist</div>
+        <button class="btn btn-ghost btn-icon" id="cancel-cl-btn" style="width:30px;height:30px;flex-shrink:0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
-      <div class="modal-field">
-        <label class="modal-label">Colour</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          ${COLORS.map((c,i) => `
-            <div class="color-swatch" data-color="${c}"
-                 style="width:24px;height:24px;border-radius:50%;background:${c};cursor:pointer;
-                        border:2px solid ${i===0?"white":"transparent"};transition:all .15s"></div>`).join("")}
+
+      <!-- Tabs -->
+      <div class="tabs" id="new-cl-tabs" style="margin-bottom:20px">
+        <div class="tab${defaultTab==="manual"?" active":""}" data-tab="manual">Manual</div>
+        <div class="tab${defaultTab==="ai"?" active":""}" data-tab="ai">✦ Generate</div>
+      </div>
+
+      <!-- ── Manual tab ──────────────────────────────────────────── -->
+      <div id="tab-manual" style="display:${defaultTab==="manual"?"block":"none"}">
+        <div class="modal-field">
+          <label class="modal-label">Name</label>
+          <input id="new-cl-name" class="modal-input" placeholder="e.g. Website Redesign"/>
+        </div>
+        <div class="modal-field">
+          <label class="modal-label">Colour</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="color-swatches-manual">
+            ${COLORS.map((c,i) => `
+              <div class="color-swatch" data-color="${c}"
+                   style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;
+                          border:2px solid ${i===0?"white":"transparent"};transition:all .15s"></div>`).join("")}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-primary" id="create-cl-btn" style="flex:1">Create</button>
         </div>
       </div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn btn-primary" id="create-cl-btn" style="flex:1">Create</button>
-        <button class="btn btn-ghost" id="cancel-cl-btn" style="flex:0;width:auto;padding:10px 16px">Cancel</button>
+
+      <!-- ── Generate tab ────────────────────────────────────────── -->
+      <div id="tab-ai" style="display:${defaultTab==="ai"?"block":"none"}">
+        <div class="modal-field">
+          <label class="modal-label">What do you want to get done?</label>
+          <textarea id="ai-prompt" class="modal-input" rows="3"
+            placeholder="e.g. Plan a client website project, Prepare for a job interview, Pack for a holiday…"
+            style="resize:none;line-height:1.6"></textarea>
+        </div>
+
+        <!-- Suggestion chips -->
+        <div class="prompt-suggestions" id="prompt-chips">
+          ${PROMPT_SUGGESTIONS.slice(0,6).map(s =>
+            `<button class="prompt-chip" data-prompt="${s}">${s}</button>`
+          ).join("")}
+        </div>
+
+        <button class="btn btn-primary" id="ai-generate-btn" style="width:100%;margin-top:16px">
+          ✦ Generate checklist
+        </button>
+
+        <!-- Preview area — hidden until generation -->
+        <div id="ai-preview" style="display:none;margin-top:20px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span id="preview-icon" style="font-size:20px">📋</span>
+              <div>
+                <input id="preview-name" class="modal-input" style="font-weight:700;font-size:1.08rem;padding:4px 8px;width:auto"/>
+                <div style="font-size:0.85rem;color:var(--text3);margin-top:2px" id="preview-meta"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px" id="preview-colors">
+              ${COLORS.map((c,i) => `
+                <div class="color-swatch preview-color-swatch" data-color="${c}"
+                     style="width:22px;height:22px;border-radius:50%;background:${c};cursor:pointer;
+                            border:2px solid transparent;transition:all .15s"></div>`).join("")}
+            </div>
+          </div>
+          <div id="preview-groups" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;background:var(--bg3)"></div>
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <button class="btn btn-primary" id="ai-create-btn" style="flex:1">✦ Create this checklist</button>
+            <button class="btn btn-ghost" id="ai-regenerate-btn" style="flex:0;width:auto;padding:10px 14px">↻ Retry</button>
+          </div>
+        </div>
+
+        <!-- No match state -->
+        <div id="ai-no-match" style="display:none;text-align:center;padding:24px 0">
+          <div style="font-size:2.15rem;margin-bottom:8px">🤔</div>
+          <div style="font-size:1rem;font-weight:700;margin-bottom:4px">No match found</div>
+          <div style="font-size:0.92rem;color:var(--text3);line-height:1.6">Try describing your goal differently, or<br>switch to Manual to create from scratch.</div>
+        </div>
       </div>
+
     </div>`;
 
   document.body.appendChild(modal);
   modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); });
   document.getElementById("cancel-cl-btn").addEventListener("click", () => modal.remove());
-  if (window.innerWidth > 768) document.getElementById("new-cl-name").focus();
+  if (window.innerWidth > 768 && defaultTab === "manual") {
+    document.getElementById("new-cl-name").focus();
+  }
 
+  // ── Tab switching ──────────────────────────────────────────────────────
+  modal.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      modal.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById("tab-manual").style.display = tab.dataset.tab === "manual" ? "block" : "none";
+      document.getElementById("tab-ai").style.display     = tab.dataset.tab === "ai"     ? "block" : "none";
+      if (tab.dataset.tab === "ai" && window.innerWidth > 768) {
+        setTimeout(() => document.getElementById("ai-prompt")?.focus(), 50);
+      }
+    });
+  });
+
+  // ── Manual tab — colour picker ─────────────────────────────────────────
   let selectedColor = COLORS[0];
-  modal.querySelectorAll(".color-swatch").forEach(sw => {
+  modal.querySelectorAll(".color-swatch:not(.preview-color-swatch)").forEach(sw => {
     sw.addEventListener("click", () => {
-      modal.querySelectorAll(".color-swatch").forEach(s => s.style.borderColor = "transparent");
+      modal.querySelectorAll(".color-swatch:not(.preview-color-swatch)").forEach(s => s.style.borderColor = "transparent");
       sw.style.borderColor = "white";
       selectedColor = sw.dataset.color;
     });
   });
 
-  const create = async () => {
+  // ── Manual tab — create ────────────────────────────────────────────────
+  const createManual = async () => {
     const name = document.getElementById("new-cl-name").value.trim();
-    if (!name) return;
+    if (!name) { document.getElementById("new-cl-name").style.borderColor = "var(--red)"; return; }
+    await doCreateChecklist({ name, color: selectedColor, icon: "", groups: [] });
     modal.remove();
+  };
+  document.getElementById("create-cl-btn").addEventListener("click", createManual);
+  document.getElementById("new-cl-name").addEventListener("keydown", e => { if (e.key === "Enter") createManual(); });
 
-    if (isGuest) {
-      const newList = {
-        id: "guest_" + Date.now(), ownerUid: "guest",
-        name, color: selectedColor, icon: "",
-        priority: "medium", pinned: false, archived: false,
-        taskCount: 0, doneCount: 0, groups: [], collaborators: [], tags: [],
-        createdAt: { toDate: () => new Date() }
-      };
-      checklists.unshift(newList);
-      saveGuestLists();
-      renderSidebar();
-      showToast(`"${name}" created!`);
-      setView("detail", newList.id);
-      return;
-    }
+  // ── AI tab — suggestion chips ──────────────────────────────────────────
+  modal.querySelectorAll(".prompt-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.getElementById("ai-prompt").value = chip.dataset.prompt;
+      document.getElementById("ai-generate-btn").click();
+    });
+  });
 
-    try {
-      const ref = await addDoc(collection(db, "checklists"), {
-        ownerUid: currentUser.uid, name, color: selectedColor, icon: "",
-        priority: "medium", pinned: false, archived: false,
-        taskCount: 0, doneCount: 0, groups: [], collaborators: [], tags: [],
-        createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+  // ── AI tab — generate ─────────────────────────────────────────────────
+  let generatedData = null;
+  let previewColor  = COLORS[0];
+
+  const runGenerate = () => {
+    const prompt = document.getElementById("ai-prompt").value.trim();
+    if (!prompt) { document.getElementById("ai-prompt").style.borderColor = "var(--red)"; return; }
+    document.getElementById("ai-prompt").style.borderColor = "";
+
+    // Show loading state
+    const btn = document.getElementById("ai-generate-btn");
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Generating…';
+
+    // Small timeout for perceived "thinking" — makes it feel like real AI
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = "✦ Generate checklist";
+
+      generatedData = generateFromPrompt(prompt);
+
+      if (!generatedData) {
+        document.getElementById("ai-preview").style.display  = "none";
+        document.getElementById("ai-no-match").style.display = "block";
+        return;
+      }
+
+      // Populate preview
+      document.getElementById("ai-no-match").style.display  = "none";
+      document.getElementById("ai-preview").style.display   = "block";
+      document.getElementById("preview-icon").textContent   = generatedData.icon;
+      document.getElementById("preview-name").value         = generatedData.name;
+      previewColor = generatedData.color;
+
+      // Set initial colour swatch highlight
+      modal.querySelectorAll(".preview-color-swatch").forEach(s => {
+        s.style.borderColor = s.dataset.color === previewColor ? "white" : "transparent";
       });
-      showToast(`"${name}" created!`);
-      setView("detail", ref.id);
-    } catch (err) {
-      console.error(err);
-      showToast("Failed to create checklist", "error");
-    }
+
+      const totalTasks = generatedData.groups.reduce((s, g) => s + g.tasks.length, 0);
+      document.getElementById("preview-meta").textContent =
+        `${generatedData.groups.length} groups · ${totalTasks} tasks`;
+
+      // Render group preview
+      document.getElementById("preview-groups").innerHTML = generatedData.groups.map(g => `
+        <div style="margin-bottom:12px">
+          <div style="font-size:0.77rem;font-weight:700;color:var(--text3);text-transform:uppercase;
+                      letter-spacing:0.8px;font-family:var(--mono);margin-bottom:5px">${g.name}</div>
+          ${g.tasks.map(t => `
+            <div style="display:flex;align-items:center;gap:7px;padding:3px 0;font-size:0.92rem;color:var(--text2)">
+              <div style="width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border3);flex-shrink:0"></div>
+              ${t.text}
+            </div>`).join("")}
+        </div>`).join("");
+
+    }, 600); // 600ms "thinking" delay
   };
 
-  document.getElementById("create-cl-btn").addEventListener("click", create);
-  document.getElementById("new-cl-name").addEventListener("keydown", e => { if (e.key === "Enter") create(); });
+  document.getElementById("ai-generate-btn").addEventListener("click", runGenerate);
+  document.getElementById("ai-prompt").addEventListener("keydown", e => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) runGenerate();
+  });
+
+  // Retry — clear and re-run
+  document.getElementById("ai-regenerate-btn")?.addEventListener("click", () => {
+    document.getElementById("ai-preview").style.display  = "none";
+    document.getElementById("ai-no-match").style.display = "none";
+    document.getElementById("ai-prompt").focus();
+  });
+
+  // Preview colour picker
+  modal.querySelectorAll(".preview-color-swatch").forEach(sw => {
+    sw.addEventListener("click", () => {
+      modal.querySelectorAll(".preview-color-swatch").forEach(s => s.style.borderColor = "transparent");
+      sw.style.borderColor = "white";
+      previewColor = sw.dataset.color;
+      if (generatedData) generatedData.color = previewColor;
+    });
+  });
+
+  // ── AI create ─────────────────────────────────────────────────────────
+  document.getElementById("ai-create-btn")?.addEventListener("click", async () => {
+    if (!generatedData) return;
+    const name = document.getElementById("preview-name").value.trim() || generatedData.name;
+    await doCreateChecklist({ ...generatedData, name, color: previewColor });
+    modal.remove();
+  });
+}
+
+// ─── Shared create helper ──────────────────────────────────────────────────
+async function doCreateChecklist({ name, color, icon, groups }) {
+  const taskCount = groups.reduce((s, g) => s + g.tasks.length, 0);
+
+  if (isGuest) {
+    const newList = {
+      id: "guest_" + Date.now(), ownerUid: "guest",
+      name, color, icon: icon || "",
+      priority: "medium", pinned: false, archived: false,
+      taskCount, doneCount: 0, groups,
+      collaborators: [], tags: [],
+      createdAt: { toDate: () => new Date() }
+    };
+    checklists.unshift(newList);
+    saveGuestLists();
+    renderSidebar();
+    showToast(`"${name}" created!`);
+    setView("detail", newList.id);
+    return;
+  }
+
+  try {
+    const ref = await addDoc(collection(db, "checklists"), {
+      ownerUid: currentUser.uid, name, color, icon: icon || "",
+      priority: "medium", pinned: false, archived: false,
+      taskCount, doneCount: 0, groups,
+      collaborators: [], tags: [],
+      createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+    });
+    showToast(`"${name}" created!`);
+    setView("detail", ref.id);
+  } catch (err) {
+    console.error(err);
+    showToast("Failed to create checklist", "error");
+  }
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────
