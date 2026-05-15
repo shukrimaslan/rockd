@@ -228,6 +228,8 @@ function renderDashboard() {
 
   document.querySelectorAll(".checklist-card").forEach(el =>
     el.addEventListener("click", () => setView("detail", el.dataset.id)));
+
+  requestAnimationFrame(upgradeEmptyStates);
 }
 
 function checklistCard(c) {
@@ -276,6 +278,8 @@ function renderArchive() {
     btn.addEventListener("click", e => { e.stopPropagation(); restoreChecklist(btn.dataset.id); }));
   document.querySelectorAll(".delete-btn").forEach(btn =>
     btn.addEventListener("click", e => { e.stopPropagation(); deleteChecklist(btn.dataset.id); }));
+
+  requestAnimationFrame(upgradeEmptyStates);
 }
 
 // ─── Templates ────────────────────────────────────────────────────────────
@@ -876,6 +880,7 @@ function renderDetail(id) {
   document.getElementById("edit-icon-btn").addEventListener("click", () => showIconPicker(c.id));
 
   bindTaskEvents(c);
+  requestAnimationFrame(upgradeEmptyStates);
 }
 
 // ─── Icon picker ───────────────────────────────────────────────────────────
@@ -2380,12 +2385,4 @@ function upgradeEmptyStates() {
   });
 }
 
-// Monkey-patch the render functions to call upgradeEmptyStates after
-const _origRenderDashboard = renderDashboard;
-function renderDashboard() { _origRenderDashboard(); requestAnimationFrame(upgradeEmptyStates); }
-
-const _origRenderArchive = renderArchive;
-function renderArchive() { _origRenderArchive(); requestAnimationFrame(upgradeEmptyStates); }
-
-const _origRenderDetail = renderDetail;
-function renderDetail(id) { _origRenderDetail(id); requestAnimationFrame(upgradeEmptyStates); }
+// upgradeEmptyStates() is called directly inside each render function below
