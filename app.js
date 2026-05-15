@@ -67,11 +67,27 @@ function setView(view, checklistId = null) {
   backBtn.style.display  = isDetail ? "flex" : "none";
   mobileLogo.style.display = isDetail ? "none" : "flex";
 
-  if (view === "dashboard") renderDashboard();
-  if (view === "templates") renderTemplates();
-  if (view === "archive")   renderArchive();
-  if (view === "settings")  renderSettings();
-  if (view === "detail")    renderDetail(checklistId);
+  // Smooth page transition
+  const content = document.getElementById("content");
+  if (content) {
+    content.style.opacity = "0";
+    content.style.transform = "translateY(6px)";
+  }
+  requestAnimationFrame(() => {
+    if (view === "dashboard") renderDashboard();
+    if (view === "templates") renderTemplates();
+    if (view === "archive")   renderArchive();
+    if (view === "settings")  renderSettings();
+    if (view === "detail")    renderDetail(checklistId);
+    requestAnimationFrame(() => {
+      if (content) {
+        content.style.transition = "opacity .18s ease, transform .18s ease";
+        content.style.opacity    = "1";
+        content.style.transform  = "translateY(0)";
+        setTimeout(() => { content.style.transition = ""; }, 200);
+      }
+    });
+  });
 
   // Mobile bottom nav active state
   document.querySelectorAll(".mobile-nav-item").forEach(n =>
@@ -219,7 +235,7 @@ function checklistCard(c) {
   const done  = c.doneCount  || 0;
   const pct   = total ? Math.round(done / total * 100) : 0;
   return `
-    <div class="checklist-card${c.pinned ? " pinned" : ""}" data-id="${c.id}"
+    <div class="checklist-card${c.pinned ? " pinned" : ""}${pct === 100 ? " complete" : ""}" data-id="${c.id}"
          style="--card-accent:${c.color || "var(--accent)"}">
       <div class="checklist-card-title">${c.icon || ""} ${c.name}</div>
       <div class="checklist-card-meta">${total} tasks · ${pct}% done</div>
@@ -831,7 +847,7 @@ function renderDetail(id) {
         <span class="progress-bar-pct" id="progress-pct">${pct}%</span>
       </div>
       <div class="progress-bar">
-        <div class="progress-bar-fill" id="progress-fill" style="width:${pct}%"></div>
+        <div class="progress-bar-fill${pct === 100 ? " complete" : ""}" id="progress-fill" style="width:${pct}%"></div>
       </div>
     </div>
 
@@ -1245,8 +1261,18 @@ async function doToggleTask(checklistId, groupId, taskId) {
   const groups    = c.groups.map(g => g.id !== groupId ? g : {
     ...g, tasks: g.tasks.map(t => t.id !== taskId ? t : { ...t, completed: !t.completed })
   });
+  const taskCount = groups.reduce((s,g) => s + g.tasks.length, 0);
   const doneCount = groups.reduce((s,g) => s + g.tasks.filter(t => t.completed).length, 0);
-  await persistGroups(checklistId, groups, { doneCount });
+
+  // 🎉 Confetti when all tasks completed
+  const wasComplete = c.taskCount > 0 && c.doneCount === c.taskCount;
+  const nowComplete = taskCount > 0 && doneCount === taskCount;
+  if (nowComplete && !wasComplete) {
+    setTimeout(() => launchConfetti(), 300);
+    showToast("🎉 All done! Checklist complete!");
+  }
+
+  await persistGroups(checklistId, groups, { doneCount, taskCount });
 }
 
 async function doEditTask(checklistId, groupId, taskId, changes) {
@@ -2152,3 +2178,214 @@ function renderSettings() {
     document.getElementById("app").style.display = "none";
   });
 }
+
+// ─── Confetti ──────────────────────────────────────────────────────────────
+// Pure canvas confetti — no library, no CDN dependency
+function launchConfetti() {
+  const canvas = document.createElement("canvas");
+  canvas.id = "confetti-canvas";
+  canvas.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999";
+  document.body.appendChild(canvas);
+
+  const ctx    = canvas.getContext("2d");
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const COLORS  = ["#7c6fff","#00d97e","#ffb020","#ff4d6d","#3d9fff","#ff6ab2","#ffffff","#a78bfa"];
+  const SHAPES  = ["rect", "circle", "ribbon"];
+  const TOTAL   = 140;
+  const GRAVITY = 0.35;
+  const DRAG    = 0.97;
+
+  const particles = Array.from({ length: TOTAL }, () => ({
+    x:    Math.random() * canvas.width,
+    y:    Math.random() * canvas.height * -0.6 - 20,
+    vx:   (Math.random() - 0.5) * 7,
+    vy:   Math.random() * -6 - 3,
+    rot:  Math.random() * 360,
+    rotV: (Math.random() - 0.5) * 8,
+    w:    Math.random() * 10 + 5,
+    h:    Math.random() * 6 + 3,
+    color:  COLORS[Math.floor(Math.random() * COLORS.length)],
+    shape:  SHAPES[Math.floor(Math.random() * SHAPES.length)],
+    alpha:  1,
+    decay:  Math.random() * 0.012 + 0.008
+  }));
+
+  let frame;
+  const DURATION = 3200;
+  const start    = performance.now();
+
+  function draw(now) {
+    const elapsed = now - start;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    particles.forEach(p => {
+      p.vy  += GRAVITY;
+      p.vx  *= DRAG;
+      p.vy  *= DRAG;
+      p.x   += p.vx;
+      p.y   += p.vy;
+      p.rot += p.rotV;
+
+      // Fade out in last 800ms
+      if (elapsed > DURATION - 800) p.alpha = Math.max(0, p.alpha - p.decay * 2);
+
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rot * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+
+      if (p.shape === "circle") {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (p.shape === "ribbon") {
+        ctx.fillRect(-p.w / 2, -p.h / 4, p.w, p.h / 2);
+      } else {
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      }
+      ctx.restore();
+    });
+
+    if (elapsed < DURATION) {
+      frame = requestAnimationFrame(draw);
+    } else {
+      cancelAnimationFrame(frame);
+      canvas.remove();
+    }
+  }
+
+  frame = requestAnimationFrame(draw);
+  // Cleanup safety
+  setTimeout(() => { cancelAnimationFrame(frame); canvas.remove(); }, DURATION + 200);
+}
+
+// ─── Offline banner ────────────────────────────────────────────────────────
+(function initOfflineBanner() {
+  const banner = document.createElement("div");
+  banner.id = "offline-banner";
+  banner.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+    You're offline — changes will sync when you reconnect`;
+  banner.style.cssText = `
+    display:none; position:fixed; top:0; left:0; right:0; z-index:1000;
+    background:#1a1520; border-bottom:1px solid rgba(255,176,32,.3);
+    color:#ffb020; font-size:0.85rem; font-family:var(--mono);
+    padding:9px 20px; text-align:center;
+    align-items:center; justify-content:center; gap:8px;
+    transition:transform .3s ease;`;
+
+  document.body.appendChild(banner);
+
+  function setOnline(online) {
+    if (online) {
+      banner.style.display = "none";
+      // Push main content back down
+      const app = document.getElementById("app");
+      if (app) app.style.marginTop = "";
+    } else {
+      banner.style.display = "flex";
+      const app = document.getElementById("app");
+      if (app) app.style.marginTop = "40px";
+    }
+  }
+
+  window.addEventListener("online",  () => {
+    setOnline(true);
+    showToast("Back online — syncing…");
+  });
+  window.addEventListener("offline", () => setOnline(false));
+  // Set initial state
+  if (!navigator.onLine) setOnline(false);
+})();
+
+// ─── Empty state illustrations ─────────────────────────────────────────────
+// SVG illustrations injected into empty states for each view
+
+const EMPTY_STATES = {
+  dashboard: {
+    svg: `<svg width="120" height="100" viewBox="0 0 120 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="10" y="20" width="45" height="55" rx="6" fill="var(--bg3)" stroke="var(--border2)" stroke-width="1.5"/>
+      <rect x="65" y="20" width="45" height="55" rx="6" fill="var(--bg3)" stroke="var(--border2)" stroke-width="1.5"/>
+      <rect x="18" y="30" width="28" height="3" rx="1.5" fill="var(--border3)"/>
+      <rect x="18" y="38" width="20" height="2" rx="1" fill="var(--border2)"/>
+      <rect x="18" y="44" width="24" height="2" rx="1" fill="var(--border2)"/>
+      <rect x="18" y="57" width="29" height="3" rx="1.5" fill="var(--accent)" opacity=".3"/>
+      <rect x="73" y="30" width="28" height="3" rx="1.5" fill="var(--border3)"/>
+      <rect x="73" y="38" width="20" height="2" rx="1" fill="var(--border2)"/>
+      <rect x="73" y="44" width="24" height="2" rx="1" fill="var(--border2)"/>
+      <rect x="73" y="57" width="29" height="3" rx="1.5" fill="var(--green)" opacity=".3"/>
+      <!-- Plus button -->
+      <circle cx="60" cy="85" r="12" fill="var(--accent)" opacity=".15"/>
+      <line x1="60" y1="79" x2="60" y2="91" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+      <line x1="54" y1="85" x2="66" y2="85" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/>
+    </svg>`,
+    title: "No checklists yet",
+    sub:   "Click <strong>✦ New Checklist</strong> to get started, or pick a template to hit the ground running."
+  },
+
+  archive: {
+    svg: `<svg width="100" height="90" viewBox="0 0 100 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="15" y="32" width="70" height="48" rx="5" fill="var(--bg3)" stroke="var(--border2)" stroke-width="1.5"/>
+      <rect x="10" y="22" width="80" height="14" rx="4" fill="var(--bg3)" stroke="var(--border2)" stroke-width="1.5"/>
+      <rect x="38" y="26" width="24" height="6" rx="3" fill="var(--border3)"/>
+      <line x1="30" y1="50" x2="70" y2="50" stroke="var(--border2)" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <line x1="30" y1="60" x2="70" y2="60" stroke="var(--border2)" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <line x1="30" y1="70" x2="55" y2="70" stroke="var(--border2)" stroke-width="1.5" stroke-dasharray="4 3"/>
+    </svg>`,
+    title: "Archive is empty",
+    sub:   "Checklists you archive will appear here — out of sight but never deleted."
+  },
+
+  detail_empty: {
+    svg: `<svg width="100" height="90" viewBox="0 0 100 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="20" y="15" width="60" height="65" rx="6" fill="var(--bg3)" stroke="var(--border2)" stroke-width="1.5"/>
+      <rect x="30" y="27" width="15" height="3" rx="1.5" fill="var(--accent)" opacity=".5"/>
+      <rect x="30" y="35" width="38" height="2" rx="1" fill="var(--border2)"/>
+      <rect x="30" y="41" width="30" height="2" rx="1" fill="var(--border2)"/>
+      <rect x="30" y="53" width="15" height="3" rx="1.5" fill="var(--green)" opacity=".5"/>
+      <rect x="30" y="61" width="38" height="2" rx="1" fill="var(--border2)"/>
+      <!-- Dashed add row -->
+      <rect x="28" y="72" width="44" height="5" rx="2.5" fill="none" stroke="var(--border3)" stroke-width="1" stroke-dasharray="3 2"/>
+    </svg>`,
+    title: "No tasks yet",
+    sub:   'Click <strong>＋ Add Group</strong> below to create your first group, then add tasks inside it.'
+  }
+};
+
+// Patch renderDashboard, renderArchive, and renderDetail empty states
+// Called after initial render — swaps plain text empty states with illustrated ones
+function upgradeEmptyStates() {
+  const content = document.getElementById("content");
+  if (!content) return;
+
+  content.querySelectorAll(".empty-state").forEach(el => {
+    const icon  = el.querySelector(".empty-state-icon");
+    const title = el.querySelector(".empty-state-title")?.textContent?.trim();
+
+    let key = null;
+    if (title === "No checklists yet")  key = "dashboard";
+    if (title === "Archive is empty")   key = "archive";
+    if (title === "No tasks yet")       key = "detail_empty";
+
+    if (!key || !EMPTY_STATES[key]) return;
+
+    const es = EMPTY_STATES[key];
+    el.innerHTML = `
+      <div class="empty-state-svg">${es.svg}</div>
+      <div class="empty-state-title">${es.title}</div>
+      <div class="empty-state-sub">${es.sub}</div>`;
+  });
+}
+
+// Monkey-patch the render functions to call upgradeEmptyStates after
+const _origRenderDashboard = renderDashboard;
+function renderDashboard() { _origRenderDashboard(); requestAnimationFrame(upgradeEmptyStates); }
+
+const _origRenderArchive = renderArchive;
+function renderArchive() { _origRenderArchive(); requestAnimationFrame(upgradeEmptyStates); }
+
+const _origRenderDetail = renderDetail;
+function renderDetail(id) { _origRenderDetail(id); requestAnimationFrame(upgradeEmptyStates); }

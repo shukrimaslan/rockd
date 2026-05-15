@@ -640,3 +640,66 @@ select.modal-input {
   animation: spin .7s linear infinite;
   display: inline-block; vertical-align: middle;
 }
+
+/* ─── PHASE 6 — POLISH ───────────────────────────────────────────────────── */
+
+/* View transitions — content area fades + slides */
+#content {
+  will-change: opacity, transform;
+}
+
+/* Offline banner pushes content down cleanly */
+#offline-banner {
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+/* Empty state illustrations */
+.empty-state-svg {
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+}
+.empty-state-svg svg {
+  overflow: visible;
+}
+.empty-state-title {
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--text2);
+  margin-bottom: 8px;
+}
+.empty-state-sub {
+  font-size: 0.92rem;
+  color: var(--text3);
+  line-height: 1.7;
+  max-width: 280px;
+  margin: 0 auto;
+}
+.empty-state-sub strong {
+  color: var(--text2);
+  font-weight: 600;
+}
+
+/* Confetti canvas sits above everything */
+#confetti-canvas {
+  pointer-events: none;
+}
+
+/* Checklist card — subtle completion ring when 100% */
+.checklist-card.complete::before {
+  opacity: 1;
+  background: var(--green);
+}
+
+/* Progress bar — pulse animation when 100% */
+@keyframes completePulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+.progress-bar-fill.complete {
+  background: linear-gradient(90deg, var(--green), #00ffaa);
+  animation: completePulse 2s ease infinite;
+}
