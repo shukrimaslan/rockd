@@ -219,8 +219,8 @@ templates/{templateId}
 - [x] Mobile bottom nav bar
 - [x] PWA — installable, offline capable
 - [x] SEO — Open Graph, Twitter Card, structured data
-- [x] AI checklist generator (Phase 5)
-- [ ] Completion confetti + animations (Phase 6)
+- [x] AI checklist generator 
+- [x] Completion confetti + animations
 - [ ] Public share links (Phase 7)
 - [ ] Collaborator invites (Phase 7)
 
