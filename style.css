@@ -401,6 +401,7 @@ a:hover { text-decoration: underline; }
 .checklist-card-progress { height: 3px; background: var(--bg4); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
 .checklist-card-progress-fill { height: 100%; border-radius: 2px; background: var(--card-accent, var(--accent)); transition: width .4s; }
 .checklist-card-footer { display: flex; align-items: center; justify-content: space-between; }
+.checklist-card .priority-badge { display: none; } /* hidden on dashboard cards — shown in detail view only */
 .checklist-card-count  { font-size: 0.85rem; color: var(--text3); }
 
 /* ─── PRIORITY BADGES ────────────────────────────────────────────────────── */
@@ -473,8 +474,8 @@ a:hover { text-decoration: underline; }
 .template-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; cursor: pointer; transition: all .15s; }
 .template-card:hover { border-color: var(--border3); background: var(--bg4); }
 .template-icon { font-size: 1.69rem; margin-bottom: 8px; }
-.template-name { font-size: 1rem; font-weight: 700; margin-bottom: 2px; }
-.template-cat  { font-size: 0.77rem; color: var(--text3); font-family: var(--mono); text-transform: uppercase; letter-spacing: .5px; }
+.template-name { font-size: 1rem; font-weight: 700; margin-bottom: 2px; line-height: 1.4; }
+.template-cat  { font-size: 0.77rem; color: var(--text3); font-family: var(--mono); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
 
 /* ─── ARCHIVE ────────────────────────────────────────────────────────────── */
 .checklist-card.archived { opacity: .6; }
@@ -493,7 +494,44 @@ a:hover { text-decoration: underline; }
 
 /* ─── MOBILE NAV ─────────────────────────────────────────────────────────── */
 .mobile-nav { display: none; padding: 0 16px; height: 56px; border-bottom: 1px solid var(--border); align-items: center; justify-content: space-between; background: var(--bg2); }
-@media (max-width: 768px) { .mobile-nav { display: flex; } .content { padding: 16px; } .topbar { display: none; } }
+@media (max-width: 768px) {
+  .mobile-nav   { display: flex; }
+  .topbar       { display: none; }
+  .content      { padding: 16px; }
+
+  /* Detail header — stack vertically on mobile */
+  .detail-header      { display: block; }
+  .detail-title-wrap  { margin-bottom: 12px; }
+  .detail-header > div:last-child { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* Prevent two-column layout on any grid */
+  .dashboard-grid  { grid-template-columns: 1fr !important; }
+  .checklist-grid  { grid-template-columns: 1fr !important; }
+  .template-grid   { grid-template-columns: 1fr !important; }
+
+  /* Task checkbox — larger tap target on mobile */
+  .task-checkbox {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    margin-top: 0;
+  }
+  .task-checkbox svg { width: 13px; height: 13px; }
+
+  /* Task item — easier to tap, no hover-only actions */
+  .task-item         { padding: 10px 8px; }
+  .task-actions      { opacity: 1 !important; } /* always visible on mobile */
+  .task-action-btn   { width: 30px; height: 30px; }
+
+  /* Drag handle — hide on mobile (touch drag not supported yet) */
+  .drag-handle, .group-drag-handle { display: none; }
+
+  /* Sticky progress bar — account for no topbar */
+  .sticky-progress { top: 0; }
+
+  /* Bottom nav FAB — slightly smaller */
+  .mobile-nav-fab { width: 46px; height: 46px; }
+}
 
 /* ─── DRAG AND DROP ──────────────────────────────────────────────────────── */
 /* Task drag handle */

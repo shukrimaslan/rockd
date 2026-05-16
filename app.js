@@ -1081,9 +1081,15 @@ function bindTaskEvents(c) {
     });
   });
 
-  // Tick / untick
-  area.querySelectorAll("[data-toggle]").forEach(el =>
-    el.addEventListener("click", () => doToggleTask(c.id, el.dataset.group, el.dataset.task)));
+  // Tick / untick — both click (desktop) and touchend (mobile)
+  area.querySelectorAll("[data-toggle]").forEach(el => {
+    const toggle = () => doToggleTask(c.id, el.dataset.group, el.dataset.task);
+    el.addEventListener("click", toggle);
+    el.addEventListener("touchend", e => {
+      e.preventDefault(); // prevent ghost click
+      toggle();
+    });
+  });
 
   // Inline edit task text
   area.querySelectorAll("[data-editable]").forEach(el => {
@@ -1981,10 +1987,9 @@ function applyPrefs() {
   root.style.setProperty("--accent2",     shadeColor(userPrefs.accentColor, -20));
   root.style.setProperty("--accent-glow", hexToRgba(userPrefs.accentColor, 0.15));
 
-  // Font size — set a root px size, then all CSS uses rem so everything scales
-  const rootSizes = { small: "11px", normal: "13px", large: "15px" };
+  // Font size — 5 levels, all CSS uses rem so everything scales proportionally
+  const rootSizes = { tiny: "10px", small: "11px", normal: "13px", large: "15px", huge: "17px" };
   root.style.fontSize = rootSizes[userPrefs.fontSize] || "13px";
-  // Store as attribute for CSS selectors if needed
   root.setAttribute("data-font-size", userPrefs.fontSize || "normal");
 
   // Theme — sync isDark var and apply
@@ -2031,9 +2036,11 @@ function renderSettings() {
     "#00d97e","#3d9fff","#00d4d4","#a78bfa","#f97316"
   ];
   const FONT_SIZES = [
-    { id: "small",  label: "Small",  desc: "Compact, more on screen" },
-    { id: "normal", label: "Normal", desc: "Default size" },
-    { id: "large",  label: "Large",  desc: "Easier to read" }
+    { id: "tiny",   label: "Tiny",   px: "10px" },
+    { id: "small",  label: "Small",  px: "11px" },
+    { id: "normal", label: "Normal", px: "13px" },
+    { id: "large",  label: "Large",  px: "15px" },
+    { id: "huge",   label: "Huge",   px: "17px" }
   ];
 
   document.getElementById("content").innerHTML = `
@@ -2083,8 +2090,8 @@ function renderSettings() {
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             ${FONT_SIZES.map(f => `
               <button class="font-size-btn${userPrefs.fontSize===f.id?" active":""}" data-size="${f.id}">
-                <span style="font-size:${f.id==="small"?"11px":f.id==="large"?"16px":"13px"};font-weight:600">Aa</span>
-                <span style="font-size:10px;color:var(--text3);margin-top:2px">${f.label}</span>
+                <span style="font-size:${f.px};font-weight:600;line-height:1.2">Aa</span>
+                <span style="font-size:10px;color:var(--text3);margin-top:3px">${f.label}</span>
               </button>`).join("")}
           </div>
 
