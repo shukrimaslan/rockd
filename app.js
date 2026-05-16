@@ -2478,16 +2478,25 @@ async function renderMarketplace() {
   const content = document.getElementById("content");
   content.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div>
-        <div style="font-size:1.08rem;font-weight:700">🌐 Template Marketplace</div>
-        <div style="font-size:0.85rem;color:var(--text3);margin-top:2px">Community-shared templates — use any with one tap</div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-ghost btn-sm" id="btn-market-back" style="width:auto;gap:6px;padding:6px 12px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Templates
+        </button>
+        <div>
+          <div style="font-size:1.08rem;font-weight:700">🌐 Marketplace</div>
+          <div style="font-size:0.77rem;color:var(--text3);margin-top:1px">Community-shared templates</div>
+        </div>
       </div>
       <input id="market-search" class="modal-input" placeholder="Search templates…"
-             style="width:200px;padding:7px 12px;font-size:0.85rem"/>
+             style="width:180px;padding:7px 12px;font-size:0.85rem"/>
     </div>
     <div id="market-grid" class="template-grid">
       <div class="loading-dots"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div></div>
     </div>`;
+
+  // Wire back button after full innerHTML is set
+  document.getElementById("btn-market-back").addEventListener("click", () => setView("templates"));
 
   let allMarket = [];
   try {
@@ -2541,6 +2550,15 @@ async function renderMarketplace() {
         try {
           await updateDoc(doc(db, COMMUNITY_COL, tpl.id), { usageCount: increment(1) });
         } catch(e) { /* silent — don't block create */ }
+        // Auto-add category if new
+        if (tpl.cat) {
+          const existing = [...new Set(BUILTIN_TEMPLATES.map(t => t.cat)), ...getCustomCategories()];
+          if (!existing.includes(tpl.cat)) {
+            const cats = getCustomCategories();
+            cats.push(tpl.cat);
+            saveCustomCategories(cats);
+          }
+        }
         await createFromTemplate(tpl);
       });
     });
