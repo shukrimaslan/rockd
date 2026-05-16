@@ -233,7 +233,7 @@ a:hover { text-decoration: underline; }
 .btn-danger:hover { background: rgba(255,77,109,.2); }
 
 .btn-sm      { padding: 5px 10px; font-size: 0.85rem; width: auto; }
-.btn-icon    { padding: 7px; width: 32px; height: 32px; }
+.btn-icon    { padding: 7px; width: 32px; height: 32px; margin-right: 10px; }
 .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
 /* Google icon inside button */
