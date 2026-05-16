@@ -703,3 +703,50 @@ select.modal-input {
   background: linear-gradient(90deg, var(--green), #00ffaa);
   animation: completePulse 2s ease infinite;
 }
+
+/* ─── MARKETPLACE ────────────────────────────────────────────────────────── */
+.market-card {
+  border-color: var(--border);
+  position: relative;
+}
+.market-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(124,111,255,.03), transparent);
+  pointer-events: none;
+}
+
+/* ─── NEW CHECKLIST MODAL ────────────────────────────────────────────────── */
+.ncl-ai-section {
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+.ncl-ai-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg3);
+  border: none;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: var(--sans);
+  transition: background .15s;
+  text-align: left;
+}
+.ncl-ai-toggle:hover { background: var(--bg4); }
+.ncl-ai-toggle-icon  { color: var(--accent); font-size: 0.92rem; }
+.ncl-chevron         { margin-left: auto; color: var(--text3); transition: transform .2s; flex-shrink: 0; }
+
+#ncl-ai-body {
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}

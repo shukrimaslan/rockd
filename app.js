@@ -371,8 +371,9 @@ function renderTemplates() {
           </div>`).join("")}
         <button class="btn btn-ghost btn-sm" id="btn-add-cat" style="width:auto;padding:4px 10px;font-size:11px">＋ Category</button>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost btn-sm" id="btn-import-template" style="width:auto">＋ Import Template</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" id="btn-marketplace" style="width:auto;gap:5px">🌐 Marketplace</button>
+        <button class="btn btn-ghost btn-sm" id="btn-import-template" style="width:auto">＋ Import</button>
       </div>
     </div>
     <div class="template-grid" id="template-grid">${allTpls.map(t => templateCard(t, custom.some(c=>c.id===t.id))).join("")}</div>`;
@@ -418,6 +419,7 @@ function renderTemplates() {
   // Add new category
   document.getElementById("btn-add-cat").addEventListener("click", showAddCategoryModal);
   document.getElementById("btn-import-template").addEventListener("click", showImportTemplateModal);
+  document.getElementById("btn-marketplace").addEventListener("click", renderMarketplace);
   bindTemplateUse();
 }
 
@@ -512,6 +514,7 @@ function templateCard(tpl, isCustom = false) {
       <div class="template-icon" style="margin-bottom:0">${tpl.icon}</div>
       ${isCustom ? `
         <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-sm publish-custom-tpl" data-id="${tpl.id}" title="Publish to marketplace" style="width:auto;padding:3px 8px;font-size:10px">🌐</button>
           <button class="btn btn-ghost btn-sm edit-custom-tpl" data-id="${tpl.id}" style="width:auto;padding:3px 8px;font-size:10px">✎</button>
           <button class="btn btn-danger btn-sm delete-custom-tpl" data-id="${tpl.id}" style="width:auto;padding:3px 8px;font-size:10px">✕</button>
         </div>` : ""}
@@ -547,6 +550,12 @@ function bindTemplateUse() {
     btn.addEventListener("click", e => {
       e.stopPropagation();
       showEditTemplateModal(btn.dataset.id);
+    });
+  });
+  document.querySelectorAll(".publish-custom-tpl").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      publishToMarketplace(btn.dataset.id);
     });
   });
 }
@@ -1670,8 +1679,8 @@ const PROMPT_SUGGESTIONS = [
   "Track a fitness goal"
 ];
 
-// ─── New Checklist modal ───────────────────────────────────────────────────
-function showNewChecklistModal(defaultTab = "manual") {
+// ─── New Checklist modal — unified design ─────────────────────────────────
+function showNewChecklistModal() {
   const COLORS = ["#7c6fff","#00d97e","#3d9fff","#ffb020","#ff4d6d","#ff6ab2","#00d4d4"];
   const existing = document.getElementById("new-checklist-modal");
   if (existing) existing.remove();
@@ -1680,90 +1689,82 @@ function showNewChecklistModal(defaultTab = "manual") {
   modal.id = "new-checklist-modal";
   modal.className = "modal-backdrop";
   modal.innerHTML = `
-    <div class="modal" style="max-width:560px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div class="modal" style="max-width:520px">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
         <div class="modal-title" style="margin-bottom:0">✦ New Checklist</div>
         <button class="btn btn-ghost btn-icon" id="cancel-cl-btn" style="width:30px;height:30px;flex-shrink:0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
 
-      <!-- Tabs -->
-      <div class="tabs" id="new-cl-tabs" style="margin-bottom:20px">
-        <div class="tab${defaultTab==="manual"?" active":""}" data-tab="manual">Manual</div>
-        <div class="tab${defaultTab==="ai"?" active":""}" data-tab="ai">✦ Generate</div>
+      <!-- Name field — always visible -->
+      <div class="modal-field">
+        <label class="modal-label">Name</label>
+        <input id="new-cl-name" class="modal-input" placeholder="e.g. Website Redesign"/>
       </div>
 
-      <!-- ── Manual tab ──────────────────────────────────────────── -->
-      <div id="tab-manual" style="display:${defaultTab==="manual"?"block":"none"}">
-        <div class="modal-field">
-          <label class="modal-label">Name</label>
-          <input id="new-cl-name" class="modal-input" placeholder="e.g. Website Redesign"/>
-        </div>
-        <div class="modal-field">
-          <label class="modal-label">Colour</label>
-          <div style="display:flex;gap:8px;flex-wrap:wrap" id="color-swatches-manual">
-            ${COLORS.map((c,i) => `
-              <div class="color-swatch" data-color="${c}"
-                   style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;
-                          border:2px solid ${i===0?"white":"transparent"};transition:all .15s"></div>`).join("")}
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="btn btn-primary" id="create-cl-btn" style="flex:1">Create</button>
-        </div>
-      </div>
-
-      <!-- ── Generate tab ────────────────────────────────────────── -->
-      <div id="tab-ai" style="display:${defaultTab==="ai"?"block":"none"}">
-        <div class="modal-field">
-          <label class="modal-label">What do you want to get done?</label>
-          <textarea id="ai-prompt" class="modal-input" rows="3"
-            placeholder="e.g. Plan a client website project, Prepare for a job interview, Pack for a holiday…"
-            style="resize:none;line-height:1.6"></textarea>
-        </div>
-
-        <!-- Suggestion chips -->
-        <div class="prompt-suggestions" id="prompt-chips">
-          ${PROMPT_SUGGESTIONS.slice(0,6).map(s =>
-            `<button class="prompt-chip" data-prompt="${s}">${s}</button>`
-          ).join("")}
-        </div>
-
-        <button class="btn btn-primary" id="ai-generate-btn" style="width:100%;margin-top:16px">
-          ✦ Generate checklist
+      <!-- AI prompt section — collapsible feel via toggle -->
+      <div class="ncl-ai-section" id="ncl-ai-section">
+        <button class="ncl-ai-toggle" id="ncl-ai-toggle">
+          <span class="ncl-ai-toggle-icon">✦</span>
+          <span id="ncl-ai-toggle-label">Generate with AI</span>
+          <svg class="ncl-chevron" id="ncl-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
 
-        <!-- Preview area — hidden until generation -->
-        <div id="ai-preview" style="display:none;margin-top:20px">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-            <div style="display:flex;align-items:center;gap:10px">
-              <span id="preview-icon" style="font-size:20px">📋</span>
-              <div>
-                <input id="preview-name" class="modal-input" style="font-weight:700;font-size:1.08rem;padding:4px 8px;width:auto"/>
-                <div style="font-size:0.85rem;color:var(--text3);margin-top:2px" id="preview-meta"></div>
-              </div>
-            </div>
-            <div style="display:flex;gap:6px" id="preview-colors">
-              ${COLORS.map((c,i) => `
-                <div class="color-swatch preview-color-swatch" data-color="${c}"
-                     style="width:22px;height:22px;border-radius:50%;background:${c};cursor:pointer;
-                            border:2px solid transparent;transition:all .15s"></div>`).join("")}
-            </div>
-          </div>
-          <div id="preview-groups" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;background:var(--bg3)"></div>
-          <div style="display:flex;gap:8px;margin-top:14px">
-            <button class="btn btn-primary" id="ai-create-btn" style="flex:1">✦ Create this checklist</button>
-            <button class="btn btn-ghost" id="ai-regenerate-btn" style="flex:0;width:auto;padding:10px 14px">↻ Retry</button>
-          </div>
-        </div>
+        <div id="ncl-ai-body" style="display:none;margin-top:10px">
+          <textarea id="ai-prompt" class="modal-input" rows="2"
+            placeholder="Describe what you want to achieve…"
+            style="resize:none;line-height:1.6;margin-bottom:8px"></textarea>
 
-        <!-- No match state -->
-        <div id="ai-no-match" style="display:none;text-align:center;padding:24px 0">
-          <div style="font-size:2.15rem;margin-bottom:8px">🤔</div>
-          <div style="font-size:1rem;font-weight:700;margin-bottom:4px">No match found</div>
-          <div style="font-size:0.92rem;color:var(--text3);line-height:1.6">Try describing your goal differently, or<br>switch to Manual to create from scratch.</div>
+          <!-- Suggestion chips -->
+          <div class="prompt-suggestions" style="margin-top:0;margin-bottom:12px">
+            ${PROMPT_SUGGESTIONS.slice(0,5).map(s =>
+              `<button class="prompt-chip" data-prompt="${s}">${s}</button>`
+            ).join("")}
+          </div>
+
+          <button class="btn btn-ghost btn-sm" id="ai-generate-btn" style="width:100%;justify-content:center;gap:6px;border-color:var(--accent);color:var(--accent)">
+            ✦ Generate structure
+          </button>
+
+          <!-- Preview — shown after generation -->
+          <div id="ai-preview" style="display:none;margin-top:14px;border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg3);border-bottom:1px solid var(--border)">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span id="preview-icon" style="font-size:1.38rem">📋</span>
+                <div>
+                  <div id="preview-name-label" style="font-size:0.92rem;font-weight:700;color:var(--text)"></div>
+                  <div id="preview-meta" style="font-size:0.77rem;color:var(--text3);font-family:var(--mono)"></div>
+                </div>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="ai-regenerate-btn" style="width:auto;padding:4px 10px;font-size:0.77rem">↻ Retry</button>
+            </div>
+            <div id="preview-groups" style="padding:10px 12px;max-height:180px;overflow-y:auto;background:var(--bg2)"></div>
+          </div>
+
+          <!-- No match -->
+          <div id="ai-no-match" style="display:none;text-align:center;padding:16px 0;font-size:0.92rem;color:var(--text3)">
+            🤔 No match — try different words, or just fill in the name above.
+          </div>
         </div>
+      </div>
+
+      <!-- Colour -->
+      <div class="modal-field" style="margin-top:14px">
+        <label class="modal-label">Colour</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap" id="color-swatches-row">
+          ${COLORS.map((c,i) => `
+            <div class="color-swatch" data-color="${c}"
+                 style="width:26px;height:26px;border-radius:50%;background:${c};cursor:pointer;
+                        border:2px solid ${i===0?"white":"transparent"};transition:all .15s"></div>`).join("")}
+        </div>
+      </div>
+
+      <!-- Create button -->
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-primary" id="create-cl-btn" style="flex:1">Create</button>
       </div>
 
     </div>`;
@@ -1771,69 +1772,52 @@ function showNewChecklistModal(defaultTab = "manual") {
   document.body.appendChild(modal);
   modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); });
   document.getElementById("cancel-cl-btn").addEventListener("click", () => modal.remove());
-  if (window.innerWidth > 768 && defaultTab === "manual") {
-    document.getElementById("new-cl-name").focus();
-  }
+  if (window.innerWidth > 768) setTimeout(() => document.getElementById("new-cl-name")?.focus(), 50);
 
-  // ── Tab switching ──────────────────────────────────────────────────────
-  modal.querySelectorAll(".tab").forEach(tab => {
-    tab.addEventListener("click", () => {
-      modal.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-      tab.classList.add("active");
-      document.getElementById("tab-manual").style.display = tab.dataset.tab === "manual" ? "block" : "none";
-      document.getElementById("tab-ai").style.display     = tab.dataset.tab === "ai"     ? "block" : "none";
-      if (tab.dataset.tab === "ai" && window.innerWidth > 768) {
-        setTimeout(() => document.getElementById("ai-prompt")?.focus(), 50);
-      }
-    });
-  });
+  // ── Colour picker ──────────────────────────────────────────────────────
+  let selectedColor    = COLORS[0];
+  let generatedGroups  = [];
 
-  // ── Manual tab — colour picker ─────────────────────────────────────────
-  let selectedColor = COLORS[0];
-  modal.querySelectorAll(".color-swatch:not(.preview-color-swatch)").forEach(sw => {
+  modal.querySelectorAll(".color-swatch").forEach(sw => {
     sw.addEventListener("click", () => {
-      modal.querySelectorAll(".color-swatch:not(.preview-color-swatch)").forEach(s => s.style.borderColor = "transparent");
+      modal.querySelectorAll(".color-swatch").forEach(s => s.style.borderColor = "transparent");
       sw.style.borderColor = "white";
       selectedColor = sw.dataset.color;
     });
   });
 
-  // ── Manual tab — create ────────────────────────────────────────────────
-  const createManual = async () => {
-    const name = document.getElementById("new-cl-name").value.trim();
-    if (!name) { document.getElementById("new-cl-name").style.borderColor = "var(--red)"; return; }
-    await doCreateChecklist({ name, color: selectedColor, icon: "", groups: [] });
-    modal.remove();
-  };
-  document.getElementById("create-cl-btn").addEventListener("click", createManual);
-  document.getElementById("new-cl-name").addEventListener("keydown", e => { if (e.key === "Enter") createManual(); });
+  // ── AI toggle ─────────────────────────────────────────────────────────
+  let aiOpen = false;
+  document.getElementById("ncl-ai-toggle").addEventListener("click", () => {
+    aiOpen = !aiOpen;
+    document.getElementById("ncl-ai-body").style.display   = aiOpen ? "block" : "none";
+    document.getElementById("ncl-chevron").style.transform = aiOpen ? "rotate(180deg)" : "";
+    document.getElementById("ncl-ai-toggle-label").textContent = aiOpen ? "Generate with AI" : "Generate with AI";
+    if (aiOpen && window.innerWidth > 768) setTimeout(() => document.getElementById("ai-prompt")?.focus(), 50);
+  });
 
-  // ── AI tab — suggestion chips ──────────────────────────────────────────
+  // ── Suggestion chips ───────────────────────────────────────────────────
   modal.querySelectorAll(".prompt-chip").forEach(chip => {
     chip.addEventListener("click", () => {
       document.getElementById("ai-prompt").value = chip.dataset.prompt;
-      document.getElementById("ai-generate-btn").click();
+      runGenerate();
     });
   });
 
-  // ── AI tab — generate ─────────────────────────────────────────────────
+  // ── Generate ───────────────────────────────────────────────────────────
   let generatedData = null;
-  let previewColor  = COLORS[0];
 
   const runGenerate = () => {
     const prompt = document.getElementById("ai-prompt").value.trim();
-    if (!prompt) { document.getElementById("ai-prompt").style.borderColor = "var(--red)"; return; }
-    document.getElementById("ai-prompt").style.borderColor = "";
+    if (!prompt) return;
 
-    // Show loading state
     const btn = document.getElementById("ai-generate-btn");
     btn.disabled = true;
-    btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Generating…';
+    btn.innerHTML = '<div class="spinner" style="width:12px;height:12px;border-width:2px;display:inline-block;vertical-align:middle;margin-right:6px"></div>Generating…';
 
-    // Small timeout for perceived "thinking" — makes it feel like real AI
     setTimeout(() => {
       btn.disabled = false;
-      btn.innerHTML = "✦ Generate checklist";
+      btn.innerHTML = "✦ Generate structure";
 
       generatedData = generateFromPrompt(prompt);
 
@@ -1843,35 +1827,39 @@ function showNewChecklistModal(defaultTab = "manual") {
         return;
       }
 
-      // Populate preview
       document.getElementById("ai-no-match").style.display  = "none";
       document.getElementById("ai-preview").style.display   = "block";
-      document.getElementById("preview-icon").textContent   = generatedData.icon;
-      document.getElementById("preview-name").value         = generatedData.name;
-      previewColor = generatedData.color;
 
-      // Set initial colour swatch highlight
-      modal.querySelectorAll(".preview-color-swatch").forEach(s => {
-        s.style.borderColor = s.dataset.color === previewColor ? "white" : "transparent";
+      // Auto-fill name if empty
+      const nameInput = document.getElementById("new-cl-name");
+      if (!nameInput.value.trim()) nameInput.value = generatedData.name;
+
+      // Auto-select the generated colour
+      selectedColor = generatedData.color;
+      modal.querySelectorAll(".color-swatch").forEach(s => {
+        s.style.borderColor = s.dataset.color === selectedColor ? "white" : "transparent";
       });
 
-      const totalTasks = generatedData.groups.reduce((s, g) => s + g.tasks.length, 0);
+      // Preview header
+      document.getElementById("preview-icon").textContent       = generatedData.icon;
+      document.getElementById("preview-name-label").textContent = generatedData.name;
+      const total = generatedData.groups.reduce((s,g) => s + g.tasks.length, 0);
       document.getElementById("preview-meta").textContent =
-        `${generatedData.groups.length} groups · ${totalTasks} tasks`;
+        `${generatedData.groups.length} groups · ${total} tasks generated`;
 
-      // Render group preview
+      // Preview groups
       document.getElementById("preview-groups").innerHTML = generatedData.groups.map(g => `
-        <div style="margin-bottom:12px">
+        <div style="margin-bottom:10px">
           <div style="font-size:0.77rem;font-weight:700;color:var(--text3);text-transform:uppercase;
-                      letter-spacing:0.8px;font-family:var(--mono);margin-bottom:5px">${g.name}</div>
+                      letter-spacing:0.8px;font-family:var(--mono);margin-bottom:4px">${g.name}</div>
           ${g.tasks.map(t => `
-            <div style="display:flex;align-items:center;gap:7px;padding:3px 0;font-size:0.92rem;color:var(--text2)">
-              <div style="width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border3);flex-shrink:0"></div>
+            <div style="display:flex;align-items:center;gap:7px;padding:2px 0;font-size:0.85rem;color:var(--text2)">
+              <div style="width:12px;height:12px;border-radius:3px;border:1.5px solid var(--border3);flex-shrink:0"></div>
               ${t.text}
             </div>`).join("")}
         </div>`).join("");
 
-    }, 600); // 600ms "thinking" delay
+    }, 500);
   };
 
   document.getElementById("ai-generate-btn").addEventListener("click", runGenerate);
@@ -1879,29 +1867,33 @@ function showNewChecklistModal(defaultTab = "manual") {
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) runGenerate();
   });
 
-  // Retry — clear and re-run
+  // Retry
   document.getElementById("ai-regenerate-btn")?.addEventListener("click", () => {
     document.getElementById("ai-preview").style.display  = "none";
     document.getElementById("ai-no-match").style.display = "none";
+    generatedData = null;
+    document.getElementById("new-cl-name").value = "";
     document.getElementById("ai-prompt").focus();
   });
 
-  // Preview colour picker
-  modal.querySelectorAll(".preview-color-swatch").forEach(sw => {
-    sw.addEventListener("click", () => {
-      modal.querySelectorAll(".preview-color-swatch").forEach(s => s.style.borderColor = "transparent");
-      sw.style.borderColor = "white";
-      previewColor = sw.dataset.color;
-      if (generatedData) generatedData.color = previewColor;
-    });
-  });
-
-  // ── AI create ─────────────────────────────────────────────────────────
-  document.getElementById("ai-create-btn")?.addEventListener("click", async () => {
-    if (!generatedData) return;
-    const name = document.getElementById("preview-name").value.trim() || generatedData.name;
-    await doCreateChecklist({ ...generatedData, name, color: previewColor });
+  // ── Create ─────────────────────────────────────────────────────────────
+  const doCreate = async () => {
+    const name = document.getElementById("new-cl-name").value.trim();
+    if (!name) {
+      document.getElementById("new-cl-name").style.borderColor = "var(--red)";
+      document.getElementById("new-cl-name").focus();
+      return;
+    }
+    document.getElementById("new-cl-name").style.borderColor = "";
     modal.remove();
+    const groups = generatedData ? generatedData.groups : [];
+    const icon   = generatedData ? generatedData.icon   : "";
+    await doCreateChecklist({ name, color: selectedColor, icon, groups });
+  };
+
+  document.getElementById("create-cl-btn").addEventListener("click", doCreate);
+  document.getElementById("new-cl-name").addEventListener("keydown", e => {
+    if (e.key === "Enter") doCreate();
   });
 }
 
@@ -2386,3 +2378,184 @@ function upgradeEmptyStates() {
 }
 
 // upgradeEmptyStates() is called directly inside each render function below
+
+// ─── Template Marketplace ──────────────────────────────────────────────────
+// Community templates stored in Firestore under /community_templates
+// Publishing: copies a local template to Firestore with isPublic:true
+// Browsing: reads all public templates, sorted by usageCount desc
+
+import {
+  collection as fsCollection,
+  getDocs, query as fsQuery,
+  orderBy as fsOrderBy, limit as fsLimit,
+  increment
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const COMMUNITY_COL = "community_templates";
+
+// ── Publish a local template to the marketplace ────────────────────────────
+async function publishToMarketplace(tplId) {
+  const tpl = getCustomTemplates().find(t => t.id === tplId);
+  if (!tpl) return;
+
+  if (isGuest) { showToast("Sign in to publish templates", "error"); return; }
+
+  const existing = document.getElementById("publish-modal");
+  if (existing) existing.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "publish-modal";
+  modal.className = "modal-backdrop";
+  modal.innerHTML = `
+    <div class="modal" style="max-width:440px">
+      <div class="modal-title">Publish to Marketplace</div>
+      <div class="modal-sub">Share <strong>${tpl.name}</strong> with the Rockd community.</div>
+
+      <div class="modal-field">
+        <label class="modal-label">Display name</label>
+        <input id="pub-name" class="modal-input" value="${tpl.name}"/>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Description <span style="color:var(--text3)">(optional)</span></label>
+        <textarea id="pub-desc" class="modal-input" rows="2" placeholder="What is this template good for?" style="resize:none"></textarea>
+      </div>
+      <div class="modal-field">
+        <label class="modal-label">Category</label>
+        <input id="pub-cat" class="modal-input" value="${tpl.cat || "Work"}"/>
+      </div>
+
+      <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:16px">
+        <div style="font-size:0.85rem;color:var(--text3);line-height:1.6">
+          Publishing makes this template visible to all Rockd users. Your display name will be shown as the author.
+          You can remove it from the marketplace at any time.
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" id="pub-confirm-btn" style="flex:1">🌐 Publish</button>
+        <button class="btn btn-ghost" id="pub-cancel-btn" style="width:auto;padding:10px 16px">Cancel</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); });
+  document.getElementById("pub-cancel-btn").addEventListener("click", () => modal.remove());
+
+  document.getElementById("pub-confirm-btn").addEventListener("click", async () => {
+    const name = document.getElementById("pub-name").value.trim();
+    const desc = document.getElementById("pub-desc").value.trim();
+    const cat  = document.getElementById("pub-cat").value.trim() || tpl.cat;
+    if (!name) return;
+
+    const btn = document.getElementById("pub-confirm-btn");
+    btn.disabled = true;
+    btn.textContent = "Publishing…";
+
+    try {
+      await setDoc(doc(db, COMMUNITY_COL, `${currentUser.uid}_${tpl.id}`), {
+        name, desc, cat,
+        icon:        tpl.icon  || "📋",
+        color:       tpl.color || "#7c6fff",
+        groups:      tpl.groups,
+        authorUid:   currentUser.uid,
+        authorName:  userPrefs.displayName || currentUser.displayName || "Anonymous",
+        usageCount:  0,
+        publishedAt: serverTimestamp()
+      });
+      modal.remove();
+      showToast(`"${name}" published to marketplace! 🌐`);
+    } catch(err) {
+      console.error(err);
+      showToast("Failed to publish", "error");
+      btn.disabled = false;
+      btn.textContent = "🌐 Publish";
+    }
+  });
+}
+
+// ── Browse marketplace ─────────────────────────────────────────────────────
+async function renderMarketplace() {
+  const content = document.getElementById("content");
+  content.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div>
+        <div style="font-size:1.08rem;font-weight:700">🌐 Template Marketplace</div>
+        <div style="font-size:0.85rem;color:var(--text3);margin-top:2px">Community-shared templates — use any with one tap</div>
+      </div>
+      <input id="market-search" class="modal-input" placeholder="Search templates…"
+             style="width:200px;padding:7px 12px;font-size:0.85rem"/>
+    </div>
+    <div id="market-grid" class="template-grid">
+      <div class="loading-dots"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div></div>
+    </div>`;
+
+  let allMarket = [];
+  try {
+    const q    = fsQuery(fsCollection(db, COMMUNITY_COL), fsOrderBy("usageCount","desc"), fsLimit(60));
+    const snap = await getDocs(q);
+    allMarket  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch(err) {
+    console.error("Marketplace load failed:", err);
+    document.getElementById("market-grid").innerHTML =
+      `<div class="empty-state" style="grid-column:1/-1">
+         <div class="empty-state-icon">😕</div>
+         <div class="empty-state-title">Couldn't load marketplace</div>
+         <div class="empty-state-sub">Check your connection and try again.</div>
+       </div>`;
+    return;
+  }
+
+  const renderGrid = (items) => {
+    if (!items.length) {
+      document.getElementById("market-grid").innerHTML =
+        `<div class="empty-state" style="grid-column:1/-1">
+           <div class="empty-state-icon">🌐</div>
+           <div class="empty-state-title">No templates yet</div>
+           <div class="empty-state-sub">Be the first to publish one from your Templates page.</div>
+         </div>`;
+      return;
+    }
+    document.getElementById("market-grid").innerHTML = items.map(t => `
+      <div class="template-card market-card" data-id="${t.id}">
+        <div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:6px">
+          <div style="font-size:1.54rem">${t.icon || "📋"}</div>
+          <span style="font-size:0.69rem;font-family:var(--mono);color:var(--text3);background:var(--bg4);
+                       padding:2px 7px;border-radius:20px;border:1px solid var(--border)">
+            ${t.usageCount || 0} uses
+          </span>
+        </div>
+        <div class="template-name">${t.name}</div>
+        <div class="template-cat" style="margin-bottom:4px">${t.cat} · ${(t.groups||[]).reduce((s,g)=>s+(g.tasks||[]).length,0)} tasks</div>
+        ${t.desc ? `<div style="font-size:0.77rem;color:var(--text3);line-height:1.5;margin-bottom:8px">${t.desc}</div>` : ""}
+        <div style="font-size:0.69rem;color:var(--text3);font-family:var(--mono);margin-bottom:10px">by ${t.authorName || "Anonymous"}</div>
+        <button class="btn btn-primary btn-sm use-market-tpl" data-id="${t.id}" style="width:100%;justify-content:center">
+          Use template
+        </button>
+      </div>`).join("");
+
+    document.querySelectorAll(".use-market-tpl").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const tpl = allMarket.find(t => t.id === btn.dataset.id);
+        if (!tpl) return;
+        // Increment usage count
+        try {
+          await updateDoc(doc(db, COMMUNITY_COL, tpl.id), { usageCount: increment(1) });
+        } catch(e) { /* silent — don't block create */ }
+        await createFromTemplate(tpl);
+      });
+    });
+  };
+
+  renderGrid(allMarket);
+
+  // Live search filter
+  document.getElementById("market-search").addEventListener("input", e => {
+    const q = e.target.value.toLowerCase();
+    renderGrid(q ? allMarket.filter(t =>
+      t.name.toLowerCase().includes(q) ||
+      t.cat.toLowerCase().includes(q)  ||
+      (t.desc||"").toLowerCase().includes(q)
+    ) : allMarket);
+  });
+}
+
