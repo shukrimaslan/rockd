@@ -750,3 +750,16 @@ select.modal-input {
   border-top: 1px solid var(--border);
   background: var(--bg2);
 }
+
+/* ─── ADMIN ───────────────────────────────────────────────────────────────── */
+#admin-badge {
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.delete-market-tpl {
+  opacity: 0;
+  transition: opacity .15s;
+}
+.market-card:hover .delete-market-tpl {
+  opacity: 1;
+}

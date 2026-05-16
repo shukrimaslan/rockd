@@ -12,6 +12,17 @@ let unsubscribe     = null;
 let currentDetailId = null;
 let checklists      = [];
 let isGuest         = false;
+let isAdmin         = false;
+
+async function loadAdminStatus(user) {
+  if (!user) { isAdmin = false; return; }
+  try {
+    const snap = await getDoc(doc(db, "admins", user.uid));
+    isAdmin = snap.exists();
+  } catch(e) {
+    isAdmin = false;
+  }
+}
 
 // ─── Theme — applied on load from localStorage, then overridden by applyPrefs on login ──
 let isDark = localStorage.getItem("rockd-theme") !== "light";
@@ -136,8 +147,8 @@ export async function initApp(user) {
     return;
   }
 
-  // Load user prefs FIRST before rendering anything
-  await loadUserPrefs(user);
+  // Load user prefs and admin status before rendering anything
+  await Promise.all([loadUserPrefs(user), loadAdminStatus(user)]);
   listenChecklists();
   setView("dashboard");
 }
@@ -168,6 +179,10 @@ function renderSidebar() {
   const active = checklists.filter(c => !c.archived);
   const pinned = active.filter(c => c.pinned);
   const rest   = active.filter(c => !c.pinned);
+
+  // Show admin badge in sidebar
+  const adminBadge = document.getElementById("admin-badge");
+  if (adminBadge) adminBadge.style.display = isAdmin ? "block" : "none";
 
   document.getElementById("sidebar-pinned").innerHTML = pinned.length
     ? pinned.map(c => sidebarItem(c, true)).join("")
@@ -2528,10 +2543,18 @@ async function renderMarketplace() {
       <div class="template-card market-card" data-id="${t.id}">
         <div style="display:flex;align-items:start;justify-content:space-between;margin-bottom:6px">
           <div style="font-size:1.54rem">${t.icon || "📋"}</div>
-          <span style="font-size:0.69rem;font-family:var(--mono);color:var(--text3);background:var(--bg4);
-                       padding:2px 7px;border-radius:20px;border:1px solid var(--border)">
-            ${t.usageCount || 0} uses
-          </span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:0.69rem;font-family:var(--mono);color:var(--text3);background:var(--bg4);
+                         padding:2px 7px;border-radius:20px;border:1px solid var(--border)">
+              ${t.usageCount || 0} uses
+            </span>
+            ${(currentUser && (t.authorUid === currentUser.uid || isAdmin)) ? `
+            <button class="btn btn-danger btn-sm delete-market-tpl" data-id="${t.id}" data-name="${t.name}"
+                    title="${isAdmin && t.authorUid !== currentUser?.uid ? "Delete (admin)" : "Delete my template"}"
+                    style="width:auto;padding:3px 8px;font-size:0.69rem">
+              ${isAdmin && t.authorUid !== currentUser?.uid ? "🛡 Delete" : "✕"}
+            </button>` : ""}
+          </div>
         </div>
         <div class="template-name">${t.name}</div>
         <div class="template-cat" style="margin-bottom:4px">${t.cat} · ${(t.groups||[]).reduce((s,g)=>s+(g.tasks||[]).length,0)} tasks</div>
@@ -2541,6 +2564,30 @@ async function renderMarketplace() {
           Use template
         </button>
       </div>`).join("");
+
+    // Delete marketplace template (author or admin)
+    document.querySelectorAll(".delete-market-tpl").forEach(btn => {
+      btn.addEventListener("click", async e => {
+        e.stopPropagation();
+        const name = btn.dataset.name;
+        if (!confirm(`Delete "${name}" from the marketplace? This cannot be undone.`)) return;
+        btn.disabled = true;
+        btn.textContent = "…";
+        try {
+          await deleteDoc(doc(db, COMMUNITY_COL, btn.dataset.id));
+          // Remove from local array and re-render
+          const idx = allMarket.findIndex(t => t.id === btn.dataset.id);
+          if (idx >= 0) allMarket.splice(idx, 1);
+          renderGrid(allMarket);
+          showToast(`"${name}" removed from marketplace`);
+        } catch(err) {
+          console.error(err);
+          showToast("Failed to delete", "error");
+          btn.disabled = false;
+          btn.textContent = "✕";
+        }
+      });
+    });
 
     document.querySelectorAll(".use-market-tpl").forEach(btn => {
       btn.addEventListener("click", async () => {
