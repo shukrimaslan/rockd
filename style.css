@@ -493,7 +493,7 @@ a:hover { text-decoration: underline; }
 
 /* ─── MOBILE NAV ─────────────────────────────────────────────────────────── */
 .mobile-nav { display: none; padding: 0 16px; height: 56px; border-bottom: 1px solid var(--border); align-items: center; justify-content: space-between; background: var(--bg2); }
-@media (max-width: 768px) { .mobile-nav { display: flex; } .content { padding: 16px; } }
+@media (max-width: 768px) { .mobile-nav { display: flex; } .content { padding: 16px; } .topbar { display: none; } }
 
 /* ─── DRAG AND DROP ──────────────────────────────────────────────────────── */
 /* Task drag handle */
